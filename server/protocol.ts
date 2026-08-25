@@ -70,7 +70,7 @@ export interface ThreadOpenResponse {
   thread: CodexThread;
   model: string;
   cwd: string;
-  access: "control" | "readOnly";
+  access: "control" | "queued";
   notice?: string;
   [key: string]: unknown;
 }

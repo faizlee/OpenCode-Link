@@ -282,6 +282,7 @@ function ChatView({
   sending,
   connection,
   error,
+  deliveryNotice,
   onBack,
   onSend,
   onStop,
@@ -292,6 +293,7 @@ function ChatView({
   sending: boolean;
   connection: string;
   error: string;
+  deliveryNotice: string;
   onBack: () => void;
   onSend: (text: string) => Promise<boolean>;
   onStop: () => void;
@@ -301,7 +303,7 @@ function ChatView({
   const [text, setText] = useState(() => window.sessionStorage.getItem(draftKey) ?? "");
   const approvals = useRef<HTMLDivElement>(null);
   const running = Boolean(activeTurnId(response.thread));
-  const readOnly = response.access === "readOnly";
+  const queued = response.access === "queued";
   const connected = connection === "connected";
   useEffect(() => {
     if (text) window.sessionStorage.setItem(draftKey, text);
@@ -314,7 +316,7 @@ function ChatView({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!text.trim() || sending || readOnly || !connected) return;
+    if (!text.trim() || sending || !connected) return;
     if (await onSend(text)) setText("");
   };
 
@@ -326,11 +328,12 @@ function ChatView({
           <h1>{titleFor(response.thread)}</h1>
           <p>{response.model} · {response.cwd}</p>
         </div>
-        {readOnly ? <span className="idle-mark live-sync"><span />完成后同步</span> : !connected ? <span className="connection-mark">正在重连</span> : requests.length ? <span className="approval-mark">等待确认</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
+        {!connected ? <span className="connection-mark">正在重连</span> : queued ? <span className="idle-mark live-sync"><span />电脑端运行</span> : requests.length ? <span className="approval-mark">等待确认</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
       </header>
 
       <Conversation thread={response.thread} />
       {response.notice && <div className="read-only-banner">{response.notice}</div>}
+      {deliveryNotice && <div className="read-only-banner">{deliveryNotice}</div>}
       {!connected && <div className="chat-error">电脑连接已断开，正在自动重连。</div>}
       {error && <div className="chat-error">{error}</div>}
       <div ref={approvals} className="approval-stack">
@@ -338,8 +341,8 @@ function ChatView({
       </div>
 
       <form className="composer" onSubmit={submit}>
-        <textarea disabled={readOnly || !connected} value={text} onChange={(event) => setText(event.target.value)} placeholder={readOnly ? "电脑端正在使用此任务" : !connected ? "正在重新连接电脑…" : running ? "继续补充指令…" : "给 Codex 发消息…"} rows={1} />
-        <button disabled={readOnly || !connected || !text.trim() || sending} aria-label="发送">{sending ? <LoaderCircle className="spin" size={20} /> : <Send size={20} />}</button>
+        <textarea disabled={!connected} value={text} onChange={(event) => setText(event.target.value)} placeholder={!connected ? "正在重新连接电脑…" : queued ? "发消息到这个电脑任务…" : running ? "继续补充指令…" : "给 Codex 发消息…"} rows={1} />
+        <button disabled={!connected || !text.trim() || sending} aria-label="发送">{sending ? <LoaderCircle className="spin" size={20} /> : <Send size={20} />}</button>
       </form>
     </main>
   );
@@ -357,6 +360,7 @@ export default function App() {
   const [selected, setSelected] = useState<ThreadResumeResponse | null>(null);
   const [requests, setRequests] = useState<RpcEvent[]>([]);
   const [error, setError] = useState("");
+  const [deliveryNotice, setDeliveryNotice] = useState("");
   const navigationToken = useRef(0);
   const listScrollTop = useRef(0);
 
@@ -387,6 +391,7 @@ export default function App() {
     const token = ++navigationToken.current;
     setOpening(true);
     setError("");
+    setDeliveryNotice("");
     try {
       const response = await bridge.request<ThreadResumeResponse>("thread:open", { threadId });
       if (token !== navigationToken.current || threadIdFromPath(window.location.pathname) !== threadId) return false;
@@ -458,7 +463,7 @@ export default function App() {
 
   useEffect(() => {
     const threadId = selected?.thread.id;
-    if (!session.authenticated || selected?.access !== "readOnly" || !threadId) return;
+    if (!session.authenticated || selected?.access === "control" || !threadId) return;
 
     let disposed = false;
     let refreshing = false;
@@ -502,8 +507,10 @@ export default function App() {
     if (!selected) return false;
     setSending(true);
     setError("");
+    setDeliveryNotice("");
     try {
-      await bridge.request("turn:start", { threadId: selected.thread.id, text });
+      const result = await bridge.request<{ delivery?: string; notice?: string }>("turn:start", { threadId: selected.thread.id, text });
+      if (result.delivery === "queued") setDeliveryNotice(result.notice ?? "消息已发送到电脑端 Codex。");
       return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -555,6 +562,6 @@ export default function App() {
   if (session.loading) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在连接</p></div>;
   if (!session.authenticated) return <LoginScreen onAuthenticated={() => setSession((current) => ({ ...current, authenticated: true }))} />;
   if (opening) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div>;
-  if (selected) return <ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} />;
+  if (selected) return <ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} deliveryNotice={deliveryNotice} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} />;
   return <ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} />;
 }

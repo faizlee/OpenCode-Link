@@ -54,7 +54,7 @@ export interface ThreadResumeResponse {
   cwd: string;
   approvalPolicy: string;
   reasoningEffort: string | null;
-  access: "control" | "readOnly";
+  access: "control" | "queued";
   notice?: string;
 }
 
