@@ -18,7 +18,7 @@ if (-not $Password -and (Test-Path -LiteralPath '.env')) {
 }
 
 if (-not $Password) {
-    throw '请先设置 CODEX_PWA_PASSWORD，或用 -Password 参数传入访问密码。'
+    throw 'Set CODEX_PWA_PASSWORD or pass -Password.'
 }
 
 $env:CODEX_PWA_PASSWORD = $Password
