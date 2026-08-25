@@ -8,7 +8,7 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite --host 127.0.0.1",
     "build": "tsc -p tsconfig.server.json && tsc -b && vite build",
-    "start": "node dist-server/index.js",
+    "start": "node --env-file-if-exists=.env dist-server/index.js",
     "test": "vitest run --exclude dist-server/**",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -b --pretty false",
     "protocol:generate": "codex app-server generate-ts --out work/protocol-schema",

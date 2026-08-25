@@ -51,6 +51,24 @@ npm start
 .\scripts\start.ps1 -Password '使用一个足够长的密码'
 ```
 
+脚本会重新构建当前源码再启动，避免页面仍是上一次的旧版本。`.env` 中的密码也会被脚本读取。
+
+## 从手机进入
+
+### 推荐：官方 Remote
+
+1. 保持 Windows 上的 ChatGPT/Codex 桌面 App 打开，电脑不要休眠。
+2. 手机更新到最新版 ChatGPT，并登录和电脑相同的账号与工作区。
+3. 在手机 ChatGPT 中打开 **Remote** 标签，选择这台电脑，再进入目标任务。
+
+本机状态显示这台电脑曾经完成过手机设备连接。如果手机看不到电脑，先到桌面 App 的 Remote Control 设置重新允许或配对。
+
+### 备用：本 PWA
+
+本机已经安装 Tailscale，但当前处于退出登录状态。先在电脑和手机登录同一个 Tailscale 网络，再把本地 `8787` 服务通过 Tailscale Serve 的 HTTPS 入口转发；不要直接向公网开放端口。
+
+PWA 路径主要用于自定义界面或官方 Remote 不可用时。它不能与 Windows Codex Desktop 同时写入同一个活动任务，这是当前 App Server 的写入锁边界。
+
 ## 安全边界
 
 - 网页不接收或保存 Codex/ChatGPT 登录凭据。
