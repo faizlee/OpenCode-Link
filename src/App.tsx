@@ -328,7 +328,7 @@ function ChatView({
           <h1>{titleFor(response.thread)}</h1>
           <p>{response.model} · {response.cwd}</p>
         </div>
-        {!connected ? <span className="connection-mark">正在重连</span> : queued ? <span className="idle-mark live-sync"><span />电脑端运行</span> : requests.length ? <span className="approval-mark">等待确认</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
+        {!connected ? <span className="connection-mark">正在重连</span> : queued ? <span className="idle-mark live-sync"><span />电脑端任务</span> : requests.length ? <span className="approval-mark">等待确认</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
       </header>
 
       <Conversation thread={response.thread} />

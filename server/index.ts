@@ -18,7 +18,6 @@ const sessions = new SessionStore();
 const codex = new CodexAppServer();
 const clients = new Set<WebSocket>();
 const pendingServerRequests = new Map<number | string, RpcEvent>();
-const desktopOwnedThreads = new Set<string>();
 
 app.set("trust proxy", true);
 app.use(express.json({ limit: "64kb" }));
@@ -100,27 +99,19 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
         return;
       }
       case "thread:open": {
-        try {
-          const result = await codex.request("thread/resume", { threadId: command.threadId }) as ThreadOpenResponse;
-          desktopOwnedThreads.delete(command.threadId);
-          succeed({ ...result, access: "control" });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (!message.includes("active writer")) throw error;
-
-          const result = await codex.request("thread/read", {
-            threadId: command.threadId,
-            includeTurns: true,
-          }) as Pick<ThreadOpenResponse, "thread">;
-          desktopOwnedThreads.add(command.threadId);
-          succeed({
-            ...result,
-            model: "电脑端 Codex",
-            cwd: result.thread.cwd,
-            access: "queued",
-            notice: "这个任务由电脑端 Codex 运行。手机消息会进入同一个任务的队列，电脑处理后会自动同步到这里。",
-          });
-        }
+        // The phone is a remote for Desktop, never a second writer. thread/read
+        // deliberately avoids loading the task or acquiring its writer lock.
+        const result = await codex.request("thread/read", {
+          threadId: command.threadId,
+          includeTurns: true,
+        }) as Pick<ThreadOpenResponse, "thread">;
+        succeed({
+          ...result,
+          model: "电脑端 Codex",
+          cwd: result.thread.cwd,
+          access: "queued",
+          notice: "手机只查看这个电脑任务，不会占用它。发送的消息会进入同一个任务队列，电脑处理后自动同步到这里。",
+        });
         return;
       }
       case "thread:read": {
@@ -133,24 +124,7 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
       case "turn:start": {
         const text = command.text.trim();
         if (!text) throw new Error("消息不能为空");
-        if (desktopOwnedThreads.has(command.threadId)) {
-          succeed(await queueMessage(command.threadId, text));
-          return;
-        }
-
-        try {
-          const result = await codex.request("turn/start", {
-            threadId: command.threadId,
-            clientUserMessageId: crypto.randomUUID(),
-            input: [{ type: "text", text, text_elements: [] }],
-          });
-          succeed({ delivery: "direct", result });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (!message.includes("active writer")) throw error;
-          desktopOwnedThreads.add(command.threadId);
-          succeed(await queueMessage(command.threadId, text));
-        }
+        succeed(await queueMessage(command.threadId, text));
         return;
       }
       case "turn:interrupt": {
