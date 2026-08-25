@@ -1,6 +1,6 @@
 import type { BridgeMessage, RpcEvent } from "./types";
 
-type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
+type ConnectionState = "connecting" | "connected" | "disconnected" | "unauthorized" | "error";
 type MessageListener = (message: BridgeMessage) => void;
 type StateListener = (state: ConnectionState) => void;
 
@@ -86,9 +86,25 @@ export class BridgeClient {
     this.socket.addEventListener("close", () => {
       this.socket = null;
       this.rejectPending(new Error("电脑连接已断开，正在重新连接"));
-      this.emitState("disconnected");
-      if (!this.intentionalClose) this.scheduleReconnect();
+      if (!this.intentionalClose) void this.handleUnexpectedClose();
     });
+  }
+
+  private async handleUnexpectedClose() {
+    try {
+      const response = await fetch("/api/session", { cache: "no-store" });
+      const session = await response.json() as { authenticated?: boolean };
+      if (!session.authenticated) {
+        if (!this.intentionalClose) this.emitState("unauthorized");
+        return;
+      }
+    } catch {
+      // If the whole service is temporarily unreachable, keep reconnecting.
+    }
+
+    if (this.intentionalClose) return;
+    this.emitState("disconnected");
+    this.scheduleReconnect();
   }
 
   private handleMessage(message: BridgeMessage) {

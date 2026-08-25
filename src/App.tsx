@@ -411,6 +411,9 @@ export default function App() {
     const offState = bridge.onState((state) => {
       setConnection(state);
       if (state !== "connected") setBridgeReady(false);
+      if (state === "unauthorized") {
+        setSession((current) => ({ ...current, loading: false, authenticated: false }));
+      }
     });
     const offMessage = bridge.onMessage((message: BridgeMessage) => {
       if (message.type === "ready") {
