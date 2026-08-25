@@ -20,6 +20,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BridgeClient, upsertRequest } from "./bridge";
+import { listPath, threadIdFromPath, threadPath } from "./navigation";
 import { activeTurnId, applyThreadEvent } from "./thread-state";
 import type { BridgeMessage, CodexThread, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
 
@@ -138,7 +139,7 @@ function ThreadList({
       <header className="topbar">
         <div>
           <p className="eyebrow">Codex Remote</p>
-          <h1>电脑上的线程</h1>
+          <h1>电脑上的任务</h1>
         </div>
         <button className="icon-button" aria-label="退出" onClick={onLogout}><LogOut size={20} /></button>
       </header>
@@ -150,7 +151,8 @@ function ThreadList({
 
       <section className="search-row">
         <Search size={19} />
-        <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="搜索线程" />
+        <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="搜索任务" />
+        {search && <button className="plain-icon" onClick={() => onSearch("")} aria-label="清空搜索"><X size={17} /></button>}
         <button className="plain-icon" onClick={onRefresh} aria-label="刷新"><RefreshCw size={18} className={loading ? "spin" : ""} /></button>
       </section>
 
@@ -158,7 +160,7 @@ function ThreadList({
 
       <section className="thread-list" aria-live="polite">
         {loading && !threads.length && <div className="center-state"><LoaderCircle className="spin" /><p>正在读取电脑上的线程</p></div>}
-        {!loading && !threads.length && <div className="center-state"><MessageSquareText /><p>没有找到线程</p></div>}
+        {!loading && !threads.length && <div className="center-state"><MessageSquareText /><p>没有找到任务</p></div>}
         {threads.map((thread) => (
           <button className="thread-card" key={thread.id} onClick={() => onOpen(thread)}>
             <div className="thread-card-main">
@@ -182,8 +184,19 @@ function ThreadList({
 
 function Conversation({ thread }: { thread: CodexThread }) {
   const bottom = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
+
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
+    const updateStickiness = () => {
+      stickToBottom.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
+    };
+    window.addEventListener("scroll", updateStickiness, { passive: true });
+    window.requestAnimationFrame(() => bottom.current?.scrollIntoView({ block: "end" }));
+    return () => window.removeEventListener("scroll", updateStickiness);
+  }, []);
+
+  useEffect(() => {
+    if (stickToBottom.current) bottom.current?.scrollIntoView({ block: "end" });
   }, [thread.turns]);
 
   return (
@@ -205,7 +218,7 @@ function Conversation({ thread }: { thread: CodexThread }) {
         // 手机端只显示对话；命令、文件变化、推理和工具过程都留在电脑端。
         return null;
       }))}
-      {activeTurnId(thread) && <div className="thinking"><LoaderCircle className="spin" size={16} /> Codex 正在电脑上处理</div>}
+      {activeTurnId(thread) && <div className="thinking"><LoaderCircle className="spin" size={16} /> Codex 正在处理，回复会自动出现</div>}
       <div ref={bottom} />
     </div>
   );
@@ -280,19 +293,29 @@ function ChatView({
   connection: string;
   error: string;
   onBack: () => void;
-  onSend: (text: string) => void;
+  onSend: (text: string) => Promise<boolean>;
   onStop: () => void;
   onResolve: (request: RpcEvent, result: unknown) => void;
 }) {
-  const [text, setText] = useState("");
+  const draftKey = `codex-pwa-draft:${response.thread.id}`;
+  const [text, setText] = useState(() => window.sessionStorage.getItem(draftKey) ?? "");
+  const approvals = useRef<HTMLDivElement>(null);
   const running = Boolean(activeTurnId(response.thread));
   const readOnly = response.access === "readOnly";
   const connected = connection === "connected";
-  const submit = (event: FormEvent) => {
+  useEffect(() => {
+    if (text) window.sessionStorage.setItem(draftKey, text);
+    else window.sessionStorage.removeItem(draftKey);
+  }, [draftKey, text]);
+
+  useEffect(() => {
+    if (requests.length) window.requestAnimationFrame(() => approvals.current?.scrollIntoView({ block: "nearest" }));
+  }, [requests.length]);
+
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!text.trim() || sending || readOnly || !connected) return;
-    onSend(text);
-    setText("");
+    if (await onSend(text)) setText("");
   };
 
   return (
@@ -303,15 +326,16 @@ function ChatView({
           <h1>{titleFor(response.thread)}</h1>
           <p>{response.model} · {response.cwd}</p>
         </div>
-        {readOnly ? <span className="idle-mark live-sync"><span />完成后同步</span> : !connected ? <span className="connection-mark">正在重连</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
+        {readOnly ? <span className="idle-mark live-sync"><span />完成后同步</span> : !connected ? <span className="connection-mark">正在重连</span> : requests.length ? <span className="approval-mark">等待确认</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
       </header>
 
       <Conversation thread={response.thread} />
-      {!readOnly && running && <div className="working-banner"><LoaderCircle className="spin" size={17} /><span>Codex 正在处理，回复会自动出现</span></div>}
       {response.notice && <div className="read-only-banner">{response.notice}</div>}
       {!connected && <div className="chat-error">电脑连接已断开，正在自动重连。</div>}
       {error && <div className="chat-error">{error}</div>}
-      {requests.map((request) => <ApprovalCard key={String(request.id)} request={request} onResolve={onResolve} />)}
+      <div ref={approvals} className="approval-stack">
+        {requests.map((request) => <ApprovalCard key={String(request.id)} request={request} onResolve={onResolve} />)}
+      </div>
 
       <form className="composer" onSubmit={submit}>
         <textarea disabled={readOnly || !connected} value={text} onChange={(event) => setText(event.target.value)} placeholder={readOnly ? "电脑端正在使用此任务" : !connected ? "正在重新连接电脑…" : running ? "继续补充指令…" : "给 Codex 发消息…"} rows={1} />
@@ -324,14 +348,17 @@ function ChatView({
 export default function App() {
   const [session, setSession] = useState<SessionState>({ loading: true, authRequired: false, authenticated: false });
   const [connection, setConnection] = useState("connecting");
+  const [bridgeReady, setBridgeReady] = useState(false);
   const [threads, setThreads] = useState<CodexThread[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [loading, setLoading] = useState(false);
-  const [opening, setOpening] = useState(false);
+  const [opening, setOpening] = useState(() => Boolean(threadIdFromPath(window.location.pathname)));
   const [sending, setSending] = useState(false);
   const [selected, setSelected] = useState<ThreadResumeResponse | null>(null);
   const [requests, setRequests] = useState<RpcEvent[]>([]);
   const [error, setError] = useState("");
+  const navigationToken = useRef(0);
+  const listScrollTop = useRef(0);
 
   useEffect(() => { void readSession().then(setSession).catch((reason) => setError(String(reason))); }, []);
 
@@ -348,12 +375,41 @@ export default function App() {
     }
   }, []);
 
+  const showThreadList = useCallback((scrollTop = listScrollTop.current) => {
+    navigationToken.current += 1;
+    listScrollTop.current = scrollTop;
+    setSelected(null);
+    setOpening(false);
+    window.requestAnimationFrame(() => window.scrollTo({ top: scrollTop, behavior: "auto" }));
+  }, []);
+
+  const openThreadById = useCallback(async (threadId: string) => {
+    const token = ++navigationToken.current;
+    setOpening(true);
+    setError("");
+    try {
+      const response = await bridge.request<ThreadResumeResponse>("thread:open", { threadId });
+      if (token !== navigationToken.current || threadIdFromPath(window.location.pathname) !== threadId) return false;
+      setSelected(response);
+      return true;
+    } catch (reason) {
+      if (token === navigationToken.current) setError(reason instanceof Error ? reason.message : String(reason));
+      return false;
+    } finally {
+      if (token === navigationToken.current) setOpening(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!session.authenticated) return;
     bridge.connect();
-    const offState = bridge.onState(setConnection);
+    const offState = bridge.onState((state) => {
+      setConnection(state);
+      if (state !== "connected") setBridgeReady(false);
+    });
     const offMessage = bridge.onMessage((message: BridgeMessage) => {
       if (message.type === "ready") {
+        setBridgeReady(true);
         setRequests(message.pendingRequests);
         void loadThreads("");
       } else if (message.type === "serverRequest") {
@@ -371,9 +427,34 @@ export default function App() {
 
   useEffect(() => {
     if (!session.authenticated) return;
+
+    const syncFromLocation = (state: Record<string, unknown> | null = window.history.state) => {
+      const threadId = threadIdFromPath(window.location.pathname);
+      if (threadId) {
+        if (bridgeReady) void openThreadById(threadId);
+        return;
+      }
+      setSearch(new URLSearchParams(window.location.search).get("q") ?? "");
+      const scrollTop = typeof state?.listScrollTop === "number" ? state.listScrollTop : listScrollTop.current;
+      showThreadList(scrollTop);
+    };
+
+    const onPopState = (event: PopStateEvent) => syncFromLocation(event.state as Record<string, unknown> | null);
+    window.addEventListener("popstate", onPopState);
+    syncFromLocation();
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [bridgeReady, openThreadById, session.authenticated, showThreadList]);
+
+  useEffect(() => {
+    if (!session.authenticated) return;
     const timer = window.setTimeout(() => void loadThreads(search), 300);
     return () => window.clearTimeout(timer);
   }, [search, session.authenticated, loadThreads]);
+
+  useEffect(() => {
+    if (threadIdFromPath(window.location.pathname)) return;
+    window.history.replaceState({ ...(window.history.state ?? {}), view: "tasks", listScrollTop: listScrollTop.current }, "", listPath(search));
+  }, [search]);
 
   useEffect(() => {
     const threadId = selected?.thread.id;
@@ -409,27 +490,24 @@ export default function App() {
     };
   }, [session.authenticated, selected?.access, selected?.thread.id]);
 
-  async function openThread(thread: CodexThread) {
-    setOpening(true);
-    setError("");
-    try {
-      const response = await bridge.request<ThreadResumeResponse>("thread:open", { threadId: thread.id });
-      setSelected(response);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setOpening(false);
-    }
+  function openThread(thread: CodexThread) {
+    const scrollTop = window.scrollY;
+    listScrollTop.current = scrollTop;
+    window.history.replaceState({ ...(window.history.state ?? {}), view: "tasks", listScrollTop: scrollTop }, "", listPath(search));
+    window.history.pushState({ view: "thread", threadId: thread.id, listScrollTop: scrollTop }, "", threadPath(thread.id));
+    void openThreadById(thread.id);
   }
 
   async function sendMessage(text: string) {
-    if (!selected) return;
+    if (!selected) return false;
     setSending(true);
     setError("");
     try {
       await bridge.request("turn:start", { threadId: selected.thread.id, text });
+      return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return false;
     } finally {
       setSending(false);
     }
@@ -460,6 +538,15 @@ export default function App() {
     setSession((current) => ({ ...current, authenticated: false }));
   }
 
+  function backToList() {
+    if (window.history.state?.view === "thread") {
+      window.history.back();
+      return;
+    }
+    window.history.replaceState({ view: "tasks", listScrollTop: 0 }, "", listPath(search));
+    showThreadList(0);
+  }
+
   const threadRequests = useMemo(
     () => selected ? requests.filter((request) => request.params?.threadId === selected.thread.id) : [],
     [requests, selected],
@@ -468,6 +555,6 @@ export default function App() {
   if (session.loading) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在连接</p></div>;
   if (!session.authenticated) return <LoginScreen onAuthenticated={() => setSession((current) => ({ ...current, authenticated: true }))} />;
   if (opening) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div>;
-  if (selected) return <ChatView response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} onBack={() => { setSelected(null); void loadThreads(search); }} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} />;
+  if (selected) return <ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} />;
   return <ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} />;
 }
