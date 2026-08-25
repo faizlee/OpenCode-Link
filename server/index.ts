@@ -114,9 +114,16 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
             model: "电脑端 Codex",
             cwd: result.thread.cwd,
             access: "readOnly",
-            notice: "这个任务正在电脑 Codex 中打开。这里可以查看内容；要继续发送消息，请使用 ChatGPT 手机 App 的 Remote。",
+            notice: "这个任务正在电脑 Codex 中打开。PWA 不抢占任务；电脑端回复完成后会自动同步到这里。",
           });
         }
+        return;
+      }
+      case "thread:read": {
+        succeed(await codex.request("thread/read", {
+          threadId: command.threadId,
+          includeTurns: true,
+        }));
         return;
       }
       case "turn:start": {

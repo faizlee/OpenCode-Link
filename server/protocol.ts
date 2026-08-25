@@ -78,6 +78,7 @@ export interface ThreadOpenResponse {
 export type BrowserCommand =
   | { type: "threads:list"; requestId: string; searchTerm?: string }
   | { type: "thread:open"; requestId: string; threadId: string }
+  | { type: "thread:read"; requestId: string; threadId: string }
   | { type: "turn:start"; requestId: string; threadId: string; text: string }
   | { type: "turn:interrupt"; requestId: string; threadId: string; turnId: string }
   | { type: "server-request:respond"; requestId: string; serverRequestId: number | string; result: unknown };

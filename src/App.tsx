@@ -2,7 +2,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import {
   ArrowLeft,
   Check,
-  ChevronDown,
   CircleStop,
   Command,
   FilePenLine,
@@ -22,7 +21,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BridgeClient, upsertRequest } from "./bridge";
 import { activeTurnId, applyThreadEvent } from "./thread-state";
-import type { BridgeMessage, CodexThread, RpcEvent, ThreadItem, ThreadPage, ThreadResumeResponse } from "./types";
+import type { BridgeMessage, CodexThread, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
 
 const bridge = new BridgeClient();
 
@@ -181,17 +180,11 @@ function ThreadList({
   );
 }
 
-function itemLabel(item: ThreadItem) {
-  if (item.type === "commandExecution") return item.command || "运行命令";
-  if (item.type === "fileChange") return `修改了 ${item.changes?.length ?? 0} 个文件`;
-  if (item.type === "mcpToolCall") return `${item.server ?? "工具"} · ${item.tool ?? "调用"}`;
-  if (item.type === "dynamicToolCall") return String(item.tool ?? "工具调用");
-  return item.type;
-}
-
 function Conversation({ thread }: { thread: CodexThread }) {
   const bottom = useRef<HTMLDivElement>(null);
-  useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [thread.turns]);
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [thread.turns]);
 
   return (
     <div className="conversation">
@@ -209,16 +202,7 @@ function Conversation({ thread }: { thread: CodexThread }) {
             </div>
           );
         }
-        if (["commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall"].includes(item.type)) {
-          const Icon = item.type === "fileChange" ? FilePenLine : Command;
-          return (
-            <details className="activity-card" key={item.id ?? `${turn.id}-${index}`}>
-              <summary><Icon size={16} /><span>{itemLabel(item)}</span><span className="activity-status">{item.status}</span><ChevronDown size={15} /></summary>
-              {item.cwd && <p>目录：{item.cwd}</p>}
-              {item.aggregatedOutput && <pre>{item.aggregatedOutput}</pre>}
-            </details>
-          );
-        }
+        // 手机端只显示对话；命令、文件变化、推理和工具过程都留在电脑端。
         return null;
       }))}
       {activeTurnId(thread) && <div className="thinking"><LoaderCircle className="spin" size={16} /> Codex 正在电脑上处理</div>}
@@ -316,7 +300,7 @@ function ChatView({
           <h1>{titleFor(response.thread)}</h1>
           <p>{response.model} · {response.cwd}</p>
         </div>
-        {running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
+        {readOnly ? <span className="idle-mark live-sync"><span />完成后同步</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
       </header>
 
       <Conversation thread={response.thread} />
@@ -385,6 +369,40 @@ export default function App() {
     const timer = window.setTimeout(() => void loadThreads(search), 300);
     return () => window.clearTimeout(timer);
   }, [search, session.authenticated, loadThreads]);
+
+  useEffect(() => {
+    const threadId = selected?.thread.id;
+    if (!session.authenticated || selected?.access !== "readOnly" || !threadId) return;
+
+    let disposed = false;
+    let refreshing = false;
+    const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const result = await bridge.request<{ thread: CodexThread }>("thread:read", { threadId });
+        if (disposed) return;
+        setSelected((current) => {
+          if (!current || current.thread.id !== threadId) return current;
+          const previousTurn = current.thread.turns.at(-1);
+          const nextTurn = result.thread.turns.at(-1);
+          if (current.thread.updatedAt === result.thread.updatedAt && JSON.stringify(previousTurn) === JSON.stringify(nextTurn)) return current;
+          return { ...current, thread: result.thread };
+        });
+      } catch {
+        // The WebSocket reconnect loop handles temporary network loss.
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 2_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [session.authenticated, selected?.access, selected?.thread.id]);
 
   async function openThread(thread: CodexThread) {
     setOpening(true);
