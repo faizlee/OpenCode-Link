@@ -72,7 +72,8 @@ button { color: inherit; }
 .primary-button { display: flex; align-items: center; justify-content: center; height: 50px; margin-top: 8px; border: 0; border-radius: 15px; background: var(--accent); color: var(--accent-ink); font-weight: 750; cursor: pointer; }
 .primary-button:disabled { opacity: .5; cursor: default; }
 
-.chat-shell { width: 100%; min-width: 0; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto auto auto; overflow-x: hidden; background: var(--bg); }
+.chat-shell { width: 100%; min-width: 0; height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; overflow: hidden; background: var(--bg); }
+.chat-shell > * { min-width: 0; max-width: 100%; }
 .chat-header { position: sticky; top: 0; z-index: 5; padding: max(12px, env(safe-area-inset-top)) 14px 12px; border-bottom: 1px solid var(--line); background: rgba(16,19,22,.92); backdrop-filter: blur(16px); }
 .chat-header > div { min-width: 0; flex: 1; }
 .chat-header h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; letter-spacing: -.015em; }
@@ -84,13 +85,14 @@ button { color: inherit; }
 .live-sync { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .live-sync span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(88,214,155,.1); }
 
-.conversation { min-width: 0; width: min(100%, 820px); margin: 0 auto; padding: 22px 15px 26px; overflow-wrap: anywhere; }
+.conversation { min-width: 0; width: 100%; max-width: 820px; min-height: 0; margin: 0 auto; padding: 22px 15px 26px; overflow-x: hidden; overflow-y: auto; overflow-wrap: anywhere; overscroll-behavior: contain; }
 .message-row { min-width: 0; display: flex; flex-direction: column; margin: 0 0 21px; }
 .message-row.user { align-items: flex-end; }
-.message-bubble { max-width: min(86%, 680px); line-height: 1.65; }
+.message-bubble { min-width: 0; max-width: min(86%, 680px); overflow-wrap: anywhere; word-break: break-word; line-height: 1.65; }
 .user .message-bubble { padding: 11px 14px; border-radius: 18px 18px 5px 18px; background: #29312f; }
 .agent-label { margin-bottom: 7px; color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: .05em; }
-.agent .message-bubble { max-width: 100%; }
+.agent .message-bubble { width: 100%; max-width: 100%; }
+.markdown { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
 .markdown > :first-child { margin-top: 0; }
 .markdown > :last-child { margin-bottom: 0; }
 .markdown p { margin: .7em 0; }
@@ -98,6 +100,8 @@ button { color: inherit; }
 .markdown code { padding: .15em .35em; border-radius: 5px; background: rgba(255,255,255,.07); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .markdown pre code { padding: 0; background: transparent; }
 .markdown a { color: var(--accent); }
+.markdown img { max-width: 100%; height: auto; }
+.markdown table { display: block; max-width: 100%; overflow-x: auto; }
 .activity-card { min-width: 0; max-width: 100%; margin: -7px 0 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.025); color: var(--muted); }
 .activity-card summary { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 8px; padding: 11px 12px; cursor: pointer; font-size: 12px; }
 .activity-card summary > span { min-width: 0; overflow-wrap: anywhere; }
@@ -106,6 +110,7 @@ button { color: inherit; }
 .thinking { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
 
 .approval-stack:empty { display: none; }
+.chat-status-stack { min-width: 0; max-height: min(38dvh, 320px); overflow-x: hidden; overflow-y: auto; background: var(--bg); }
 .approval-card { width: min(calc(100% - 24px), 780px); margin: 8px auto; padding: 15px; border: 1px solid rgba(255,211,122,.2); border-radius: 17px; background: #24221c; }
 .approval-heading { display: flex; align-items: center; gap: 9px; color: #ffd37a; }
 .approval-description { margin: 12px 0; max-height: 150px; }
@@ -121,11 +126,11 @@ button { color: inherit; }
 
 .chat-error { width: min(calc(100% - 24px), 780px); margin: 6px auto; font-size: 12px; }
 .read-only-banner { width: min(calc(100% - 24px), 780px); margin: 6px auto; padding: 11px 13px; border: 1px solid rgba(242, 190, 91, .35); border-radius: 12px; background: rgba(242, 190, 91, .1); color: #f4d49a; font-size: 13px; line-height: 1.5; }
-.composer { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 9px; padding: 10px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(16,19,22,.94); backdrop-filter: blur(16px); }
-.composer textarea { flex: 1; min-height: 46px; max-height: 140px; resize: none; border: 1px solid var(--line); border-radius: 16px; outline: 0; padding: 12px 14px; background: var(--panel); color: var(--text); line-height: 1.45; }
+.composer { width: 100%; min-width: 0; display: flex; align-items: flex-end; gap: 9px; padding: 10px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(16,19,22,.94); backdrop-filter: blur(16px); }
+.composer textarea { flex: 1 1 0; width: 0; min-width: 0; min-height: 46px; max-height: 140px; resize: none; border: 1px solid var(--line); border-radius: 16px; outline: 0; padding: 12px 14px; background: var(--panel); color: var(--text); line-height: 1.45; }
 .composer textarea:disabled { color: var(--muted); background: #161a1e; }
 .composer textarea:focus { border-color: rgba(88,214,155,.35); }
-.composer button { width: 46px; height: 46px; display: grid; place-items: center; border: 0; border-radius: 15px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.composer button { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; border: 0; border-radius: 15px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
 .composer button:disabled { opacity: .35; cursor: default; }
 
 .spin { animation: spin .9s linear infinite; }

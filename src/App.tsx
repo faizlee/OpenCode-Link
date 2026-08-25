@@ -183,24 +183,28 @@ function ThreadList({
 }
 
 function Conversation({ thread }: { thread: CodexThread }) {
+  const container = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
   useEffect(() => {
+    const element = container.current;
+    if (!element) return;
     const updateStickiness = () => {
-      stickToBottom.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
+      stickToBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight <= 160;
     };
-    window.addEventListener("scroll", updateStickiness, { passive: true });
-    window.requestAnimationFrame(() => bottom.current?.scrollIntoView({ block: "end" }));
-    return () => window.removeEventListener("scroll", updateStickiness);
+    element.addEventListener("scroll", updateStickiness, { passive: true });
+    window.requestAnimationFrame(() => { element.scrollTop = element.scrollHeight; });
+    return () => element.removeEventListener("scroll", updateStickiness);
   }, []);
 
   useEffect(() => {
-    if (stickToBottom.current) bottom.current?.scrollIntoView({ block: "end" });
+    const element = container.current;
+    if (stickToBottom.current && element) element.scrollTop = element.scrollHeight;
   }, [thread.turns]);
 
   return (
-    <div className="conversation">
+    <div ref={container} className="conversation">
       {thread.turns.flatMap((turn) => turn.items.map((item, index) => {
         if (item.type === "reasoning" || item.type === "plan") return null;
         if (item.type === "userMessage") {
@@ -332,12 +336,14 @@ function ChatView({
       </header>
 
       <Conversation thread={response.thread} />
-      {response.notice && <div className="read-only-banner">{response.notice}</div>}
-      {deliveryNotice && <div className="read-only-banner">{deliveryNotice}</div>}
-      {!connected && <div className="chat-error">电脑连接已断开，正在自动重连。</div>}
-      {error && <div className="chat-error">{error}</div>}
-      <div ref={approvals} className="approval-stack">
-        {requests.map((request) => <ApprovalCard key={String(request.id)} request={request} onResolve={onResolve} />)}
+      <div className="chat-status-stack">
+        {response.notice && <div className="read-only-banner">{response.notice}</div>}
+        {deliveryNotice && <div className="read-only-banner">{deliveryNotice}</div>}
+        {!connected && <div className="chat-error">电脑连接已断开，正在自动重连。</div>}
+        {error && <div className="chat-error">{error}</div>}
+        <div ref={approvals} className="approval-stack">
+          {requests.map((request) => <ApprovalCard key={String(request.id)} request={request} onResolve={onResolve} />)}
+        </div>
       </div>
 
       <form className="composer" onSubmit={submit}>
