@@ -38,6 +38,7 @@ export class BridgeClient {
   disconnect() {
     this.intentionalClose = true;
     if (this.retryTimer !== null) window.clearTimeout(this.retryTimer);
+    this.rejectPending(new Error("电脑连接已关闭"));
     this.socket?.close();
     this.socket = null;
   }
@@ -84,6 +85,7 @@ export class BridgeClient {
     this.socket.addEventListener("error", () => this.emitState("error"));
     this.socket.addEventListener("close", () => {
       this.socket = null;
+      this.rejectPending(new Error("电脑连接已断开，正在重新连接"));
       this.emitState("disconnected");
       if (!this.intentionalClose) this.scheduleReconnect();
     });
@@ -106,6 +108,14 @@ export class BridgeClient {
     const delay = Math.min(10_000, 700 * 2 ** this.retryCount) + Math.random() * 300;
     this.retryCount += 1;
     this.retryTimer = window.setTimeout(() => this.open(), delay);
+  }
+
+  private rejectPending(reason: Error) {
+    for (const waiter of this.pending.values()) {
+      window.clearTimeout(waiter.timer);
+      waiter.reject(reason);
+    }
+    this.pending.clear();
   }
 
   private emitState(state: ConnectionState) {
