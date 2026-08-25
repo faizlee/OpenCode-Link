@@ -10,6 +10,17 @@ interface PendingRequest {
   timer: number;
 }
 
+let requestSequence = 0;
+
+export function createRequestId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  requestSequence += 1;
+  return `${Date.now().toString(36)}-${requestSequence.toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export class BridgeClient {
   private socket: WebSocket | null = null;
   private retryTimer: number | null = null;
@@ -45,7 +56,7 @@ export class BridgeClient {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error("尚未连接到电脑"));
     }
-    const requestId = crypto.randomUUID();
+    const requestId = createRequestId();
     return new Promise<T>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         this.pending.delete(requestId);
