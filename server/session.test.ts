@@ -61,6 +61,32 @@ describe("SessionStore", () => {
     expect(new SessionStore("test-password", devicePath()).isAuthenticated(requestWithCookie(cookie))).toBe(false);
   });
 
+  it("adopts the same trusted-device identity on another origin without adding a row", () => {
+    const store = new SessionStore("test-password", devicePath());
+    const created = responseRecorder();
+    store.create(requestWithCookie(), created.response, false);
+    const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+    const raw = store.sessionToken(requestWithCookie(cookie));
+    const adopted = responseRecorder();
+
+    expect(raw).toBeTruthy();
+    expect(store.adopt(raw ?? "", adopted.response, false)).toBe(true);
+    expect(store.listDevices()).toHaveLength(1);
+    expect(adopted.headers.get("set-cookie")?.split(";", 1)[0]).toBe(cookie);
+    expect(store.isAuthenticated(requestWithCookie(cookie))).toBe(true);
+  });
+
+  it("refreshes a repeated scan without adding a trusted-device row", () => {
+    const store = new SessionStore("test-password", devicePath());
+    const created = responseRecorder();
+    store.create(requestWithCookie(), created.response, false);
+    const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+
+    expect(store.refresh(requestWithCookie(cookie), responseRecorder().response, false)).toBe(true);
+    expect(store.listDevices()).toHaveLength(1);
+    expect(store.adopt("v2.invalid.secret", responseRecorder().response, false)).toBe(false);
+  });
+
   it("revokes one trusted device without affecting another", () => {
     const store = new SessionStore("test-password", devicePath());
     const first = responseRecorder();

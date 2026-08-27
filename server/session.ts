@@ -109,9 +109,18 @@ export class SessionStore {
   refresh(request: IncomingMessage, response: ServerResponse, secure: boolean) {
     const token = this.validToken(request);
     if (!token) return false;
-    token.device.lastSeenAt = Date.now();
-    this.save();
-    this.setCookie(response, token.raw, secure);
+    this.refreshToken(token, response, secure);
+    return true;
+  }
+
+  sessionToken(request: IncomingMessage) {
+    return this.validToken(request)?.raw ?? null;
+  }
+
+  adopt(raw: string, response: ServerResponse, secure: boolean) {
+    const token = this.validRawToken(raw);
+    if (!token) return false;
+    this.refreshToken(token, response, secure);
     return true;
   }
 
@@ -144,12 +153,22 @@ export class SessionStore {
 
   private validToken(request: IncomingMessage) {
     const raw = parseCookies(request.headers.cookie).get(COOKIE_NAME);
+    return this.validRawToken(raw);
+  }
+
+  private validRawToken(raw: string | undefined) {
     if (!raw) return null;
     const parts = raw.split(".");
     if (parts.length !== 3 || parts[0] !== SESSION_VERSION) return null;
     const device = this.devices.find((entry) => entry.id === parts[1]);
     if (!device || !safeEqual(device.tokenHash, tokenHash(parts[2]))) return null;
     return { raw, device };
+  }
+
+  private refreshToken(token: { raw: string; device: StoredDevice }, response: ServerResponse, secure: boolean) {
+    token.device.lastSeenAt = Date.now();
+    this.save();
+    this.setCookie(response, token.raw, secure);
   }
 
   private setCookie(response: ServerResponse, token: string, secure: boolean) {

@@ -103,7 +103,12 @@ app.post("/api/stable-link", async (request, response) => {
     response.status(404).json({ error: "当前网络不支持固定名称" });
     return;
   }
-  const ticket = pairing.issue();
+  const sessionToken = sessions.sessionToken(request);
+  if (sessions.authRequired && !sessionToken) {
+    response.status(401).json({ error: "当前设备身份已失效，请重新配对" });
+    return;
+  }
+  const ticket = pairing.issue(sessionToken ? { sessionToken } : {});
   response.json({ origin: stableAddress.origin, url: `${stableAddress.origin}/pair/${ticket.token}` });
 });
 
@@ -155,11 +160,19 @@ app.post("/api/pairing", async (request, response) => {
 
 app.get("/pair/:token", (request, response) => {
   response.setHeader("Cache-Control", "no-store");
-  if (!pairing.accepts(String(request.params.token ?? ""))) {
+  const ticket = pairing.consume(String(request.params.token ?? ""));
+  if (!ticket) {
+    if (sessions.refresh(request, response, request.secure)) {
+      response.redirect(303, "/");
+      return;
+    }
     response.status(410).send("这个二维码已过期，请在电脑端刷新二维码后重试。");
     return;
   }
-  sessions.create(request, response, request.secure);
+  if (!sessions.refresh(request, response, request.secure)
+    && !(ticket.sessionToken && sessions.adopt(ticket.sessionToken, response, request.secure))) {
+    sessions.create(request, response, request.secure);
+  }
   response.redirect(303, "/");
 });
 
