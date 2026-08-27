@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1",
+  "receiptType": "feature_lifecycle_validation_receipt",
+  "featureId": "UNIFIED-ATTACHMENTS-001",
+  "stage": "decision_converged",
+  "manifestDigest": "a112ecc0f9ff2fddc3879262cfc5def7c4c131bda1e9a6f87d4ae5386127536f",
+  "allowed": true,
+  "blockers": [],
+  "allowedNextAction": "complete_real_phone_attachment_send_acceptance_then_evaluate_delivery_integrated",
+  "stopLine": "Do not claim real phone attachment delivery, native image queue support, release, or cloud storage until the target-phone flow and resulting Codex task are verified.",
+  "decisionAuthorityStatus": "user_confirmed",
+  "evidenceRefs": [
+    "docs/product-decisions.json#UNIFIED-ATTACHMENTS-001",
+    "README.md",
+    "docs/product-decisions.json",
+    "src/App.tsx",
+    "server/attachment-upload.ts",
+    "server/queue-message.ts",
+    "server/index.ts",
+    "server/attachment-upload.test.ts",
+    "server/queue-message.test.ts",
+    "README defines one multi-file attachment entry, native Codex image delivery with a local-path fallback, size limits, local-only storage, and cleanup behavior.",
+    "Structured decision records the unified attachment contract and keeps native general-file queue support and very large uploads deferred.",
+    "Current sources do not reduce the product to an image uploader, apply an extension whitelist, or create a cloud file library.",
+    "Implementation commit 3c97bac includes multi-file parsing, content-based image detection, queue image fallback, local-path delivery, 24-hour cleanup, UI selection limits, and regression coverage.",
+    "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac.",
+    "Twelve test files and thirty tests passed, including multi-file parsing, image detection, queue argument construction, and native-image fallback coverage.",
+    "Server compilation, client compilation, Vite production build, and PWA precache generation passed on 2026-08-27."
+  ],
+  "invalidationConditions": [
+    "manifest_digest_changed",
+    "decision_authority_changed",
+    "required_consumer_changed",
+    "check_or_residual_scan_changed"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1",
+  "receiptType": "feature_lifecycle_validation_receipt",
+  "featureId": "LAN-TRUSTED-DEVICE-001",
+  "stage": "decision_converged",
+  "manifestDigest": "fb39468c2a1eaf6e7764f435e90fa8397c73cff98626e9e4b40a6d242730bfd6",
+  "allowed": true,
+  "blockers": [],
+  "allowedNextAction": "complete_real_phone_reopen_acceptance_then_evaluate_delivery_integrated",
+  "stopLine": "Do not expand into external network channels, HTTPS hosting, or firewall changes, and do not substitute the local production probe for target-phone acceptance.",
+  "decisionAuthorityStatus": "user_confirmed",
+  "evidenceRefs": [
+    "docs/product-decisions.json#LAN-TRUSTED-DEVICE-001",
+    "README.md",
+    "docs/product-decisions.json",
+    "server/session.ts",
+    "server/index.ts",
+    "server/session.test.ts",
+    "src/App.tsx",
+    "src/styles.css",
+    "README defines first-scan pairing, durable trusted-device behavior, direct reopen, revocation, and the difference between stable-name and IP fallback origins.",
+    "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records confirmed and deferred scope.",
+    "The fixed 30-day server expiry was removed; retained five-minute wording applies only to new-device QR pairing.",
+    "Implementation commit 3c97bac contains the persistent device registry, rolling browser session, local device-management API/UI, revocation, and tests.",
+    "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac.",
+    "Twelve test files and thirty tests passed, including persistent trusted-device, revocation, and stable LAN-name coverage.",
+    "A temporary device authenticated before and after a production service restart, failed immediately after revocation, and was removed without changing the nine existing trusted devices on 2026-08-27."
+  ],
+  "invalidationConditions": [
+    "manifest_digest_changed",
+    "decision_authority_changed",
+    "required_consumer_changed",
+    "check_or_residual_scan_changed"
+  ]
+}

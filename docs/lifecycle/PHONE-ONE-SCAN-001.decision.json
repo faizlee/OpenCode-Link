@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "featureId": "PHONE-ONE-SCAN-001",
+  "stage": "decision_converged",
+  "decisionAuthority": {
+    "status": "user_confirmed",
+    "evidence": ["docs/product-decisions.json#PHONE-ONE-SCAN-001"]
+  },
+  "consumers": [
+    {
+      "class": "product_authority",
+      "status": "synced",
+      "paths": ["README.md"],
+      "evidence": "README defines scan once, confirm the desktop icon once, then use only the icon."
+    },
+    {
+      "class": "decision_ledger",
+      "status": "synced",
+      "paths": ["docs/product-decisions.json"],
+      "evidence": "Structured decision records the phone-only interaction and hides networking implementation details."
+    },
+    {
+      "class": "conflict_audit",
+      "status": "synced",
+      "paths": ["README.md", "src/App.tsx"],
+      "evidence": "The UI does not promise silent installation; it retains the browser-required first confirmation."
+    },
+    {
+      "class": "downstream_impact",
+      "status": "synced",
+      "paths": ["src/App.tsx", "src/styles.css", "vite.config.ts", "index.html"],
+      "evidence": "Implementation commit 3c97bac foregrounds scan-and-add on the pairing screen, keeps technical addresses collapsed, and gives authenticated mobile users one add-to-desktop action with a concise shortcut fallback."
+    }
+  ],
+  "checks": [
+    {
+      "name": "TypeScript typecheck",
+      "status": "passed",
+      "command": "npm run typecheck",
+      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac."
+    },
+    {
+      "name": "Unit tests",
+      "status": "passed",
+      "command": "npm test",
+      "evidence": "Twelve test files and thirty tests passed after adding the phone shortcut and trusted-device flows."
+    },
+    {
+      "name": "Current-host mobile viewport probe",
+      "status": "passed",
+      "command": "Open /setup and / at 390x844 in the in-app browser",
+      "evidence": "The current production build showed the QR setup flow, task list, add-to-home-screen guidance, and task history without horizontal overflow; injected plugin and instruction context was absent after the history fix."
+    }
+  ],
+  "residualScan": {
+    "required": true,
+    "status": "passed",
+    "scope": ["README.md", "src", "docs"],
+    "patterns": ["手机用户需要填写IP", "手机用户需要填写端口", "自动静默安装"],
+    "unresolved": []
+  },
+  "gate": {
+    "allowed": true,
+    "blockers": [],
+    "allowedNextAction": "complete_real_phone_install_and_reopen_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not claim automatic icon installation or target-phone acceptance without the browser's required user confirmation and a real reopen; HTTPS remains separately deferred."
+  }
+}

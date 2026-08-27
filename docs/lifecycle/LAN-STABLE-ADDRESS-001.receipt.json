@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1",
+  "receiptType": "feature_lifecycle_validation_receipt",
+  "featureId": "LAN-STABLE-ADDRESS-001",
+  "stage": "decision_converged",
+  "manifestDigest": "0e47cbf9e850d8988bfd2c14e1fa7d33c2b1aefe1fb48df84427ac6248330c84",
+  "allowed": true,
+  "blockers": [],
+  "allowedNextAction": "complete_real_phone_resolution_and_ip_fallback_acceptance_then_evaluate_delivery_integrated",
+  "stopLine": "Do not expose the service to the public internet, modify Clash or firewall settings, or claim target-phone .local resolution until it is verified on that phone and Wi-Fi.",
+  "decisionAuthorityStatus": "user_confirmed",
+  "evidenceRefs": [
+    "docs/product-decisions.json#LAN-STABLE-ADDRESS-001",
+    "README.md",
+    "docs/product-decisions.json",
+    "server/lan-discovery.ts",
+    "server/index.ts",
+    "server/lan-discovery.test.ts",
+    "src/App.tsx",
+    "scripts/launch.ps1",
+    ".env.example",
+    "README defines reliable first-scan access, automatic stable-name adoption, desktop-side port handling, and silent IP fallback behavior.",
+    "Structured decision records the confirmed zero-configuration LAN name and explicit external-network deferrals.",
+    "Prior address-change wording now distinguishes fixed-name access from IP fallback access.",
+    "Implementation commit 3c97bac restricts mDNS advertisement to physical LAN interfaces, redirects port 80 automatically, uses a concrete IP for first pairing, and adopts the stable origin only after a successful client probe.",
+    "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac.",
+    "Twelve test files and thirty tests passed, including LAN-name normalization, physical-interface selection, and default-port fallback coverage.",
+    "The current physical LAN address returned HTTP 307 from the no-port entry to the running 8787 service on 2026-08-27. Direct host resolution is not claimed because this computer's Clash DNS maps .local names to fake-IP space."
+  ],
+  "invalidationConditions": [
+    "manifest_digest_changed",
+    "decision_authority_changed",
+    "required_consumer_changed",
+    "check_or_residual_scan_changed"
+  ]
+}

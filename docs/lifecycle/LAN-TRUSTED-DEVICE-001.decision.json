@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1",
+  "featureId": "LAN-TRUSTED-DEVICE-001",
+  "stage": "decision_converged",
+  "decisionAuthority": {
+    "status": "user_confirmed",
+    "evidence": [
+      "docs/product-decisions.json#LAN-TRUSTED-DEVICE-001"
+    ]
+  },
+  "consumers": [
+    {
+      "class": "product_authority",
+      "status": "synced",
+      "paths": ["README.md"],
+      "evidence": "README defines first-scan pairing, durable trusted-device behavior, direct reopen, revocation, and the difference between stable-name and IP fallback origins."
+    },
+    {
+      "class": "decision_ledger",
+      "status": "synced",
+      "paths": ["docs/product-decisions.json"],
+      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records confirmed and deferred scope."
+    },
+    {
+      "class": "conflict_audit",
+      "status": "synced",
+      "paths": ["server/session.ts", "README.md"],
+      "evidence": "The fixed 30-day server expiry was removed; retained five-minute wording applies only to new-device QR pairing."
+    },
+    {
+      "class": "downstream_impact",
+      "status": "synced",
+      "paths": ["server/session.ts", "server/index.ts", "server/session.test.ts", "src/App.tsx", "src/styles.css"],
+      "evidence": "Implementation commit 3c97bac contains the persistent device registry, rolling browser session, local device-management API/UI, revocation, and tests."
+    }
+  ],
+  "checks": [
+    {
+      "name": "TypeScript typecheck",
+      "status": "passed",
+      "command": "npm run typecheck",
+      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac."
+    },
+    {
+      "name": "Unit tests",
+      "status": "passed",
+      "command": "npm test",
+      "evidence": "Twelve test files and thirty tests passed, including persistent trusted-device, revocation, and stable LAN-name coverage."
+    },
+    {
+      "name": "Production trusted-device restart probe",
+      "status": "passed",
+      "command": "pair -> authenticate -> restart -> authenticate -> revoke -> reject",
+      "evidence": "A temporary device authenticated before and after a production service restart, failed immediately after revocation, and was removed without changing the nine existing trusted devices on 2026-08-27."
+    }
+  ],
+  "residualScan": {
+    "required": true,
+    "status": "passed",
+    "scope": ["README.md", "server", "src", "docs"],
+    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码"],
+    "unresolved": []
+  },
+  "gate": {
+    "allowed": true,
+    "blockers": [],
+    "allowedNextAction": "complete_real_phone_reopen_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not expand into external network channels, HTTPS hosting, or firewall changes, and do not substitute the local production probe for target-phone acceptance."
+  }
+}

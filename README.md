@@ -1,6 +1,6 @@
 # OpenCodex Link
 
-> **文档处置**：`current-source`。这是当前产品范围、使用方式、安全边界和验证入口；正式产品决定见 `docs/product-decisions.json`。
+> **文档处置**：`current-source`。这是当前产品范围、使用方式与安全边界入口；正式产品决定见 `docs/product-decisions.json`，交付证据导航见 `docs/README.md`。
 
 面向手机的 Codex 极简界面。Codex、任务、项目文件、知识库与工具都运行在 Windows 电脑上，手机只负责选择任务、发送消息和查看回答。
 

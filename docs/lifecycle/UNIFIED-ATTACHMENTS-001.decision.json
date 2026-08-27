@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "featureId": "UNIFIED-ATTACHMENTS-001",
+  "stage": "decision_converged",
+  "decisionAuthority": {
+    "status": "user_confirmed",
+    "evidence": ["docs/product-decisions.json#UNIFIED-ATTACHMENTS-001"]
+  },
+  "consumers": [
+    {
+      "class": "product_authority",
+      "status": "synced",
+      "paths": ["README.md"],
+      "evidence": "README defines one multi-file attachment entry, native Codex image delivery with a local-path fallback, size limits, local-only storage, and cleanup behavior."
+    },
+    {
+      "class": "decision_ledger",
+      "status": "synced",
+      "paths": ["docs/product-decisions.json"],
+      "evidence": "Structured decision records the unified attachment contract and keeps native general-file queue support and very large uploads deferred."
+    },
+    {
+      "class": "conflict_audit",
+      "status": "synced",
+      "paths": ["README.md", "src/App.tsx", "server/attachment-upload.ts", "server/queue-message.ts"],
+      "evidence": "Current sources do not reduce the product to an image uploader, apply an extension whitelist, or create a cloud file library."
+    },
+    {
+      "class": "downstream_impact",
+      "status": "synced",
+      "paths": ["server/attachment-upload.ts", "server/queue-message.ts", "server/index.ts", "src/App.tsx", "server/attachment-upload.test.ts", "server/queue-message.test.ts"],
+      "evidence": "Implementation commit 3c97bac includes multi-file parsing, content-based image detection, queue image fallback, local-path delivery, 24-hour cleanup, UI selection limits, and regression coverage."
+    }
+  ],
+  "checks": [
+    {
+      "name": "TypeScript typecheck",
+      "status": "passed",
+      "command": "npm run typecheck",
+      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac."
+    },
+    {
+      "name": "Unit tests",
+      "status": "passed",
+      "command": "npm test",
+      "evidence": "Twelve test files and thirty tests passed, including multi-file parsing, image detection, queue argument construction, and native-image fallback coverage."
+    },
+    {
+      "name": "Production build",
+      "status": "passed",
+      "command": "npm run build",
+      "evidence": "Server compilation, client compilation, Vite production build, and PWA precache generation passed on 2026-08-27."
+    }
+  ],
+  "residualScan": {
+    "required": true,
+    "status": "passed",
+    "scope": ["README.md", "server", "src", "docs"],
+    "patterns": ["只支持图片", "按扩展名白名单", "OpenCodex Link 云端文件库"],
+    "unresolved": []
+  },
+  "gate": {
+    "allowed": true,
+    "blockers": [],
+    "allowedNextAction": "complete_real_phone_attachment_send_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not claim real phone attachment delivery, native image queue support, release, or cloud storage until the target-phone flow and resulting Codex task are verified."
+  }
+}

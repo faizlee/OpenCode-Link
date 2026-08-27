@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "featureId": "LAN-STABLE-ADDRESS-001",
+  "stage": "decision_converged",
+  "decisionAuthority": {
+    "status": "user_confirmed",
+    "evidence": ["docs/product-decisions.json#LAN-STABLE-ADDRESS-001"]
+  },
+  "consumers": [
+    {
+      "class": "product_authority",
+      "status": "synced",
+      "paths": ["README.md"],
+      "evidence": "README defines reliable first-scan access, automatic stable-name adoption, desktop-side port handling, and silent IP fallback behavior."
+    },
+    {
+      "class": "decision_ledger",
+      "status": "synced",
+      "paths": ["docs/product-decisions.json"],
+      "evidence": "Structured decision records the confirmed zero-configuration LAN name and explicit external-network deferrals."
+    },
+    {
+      "class": "conflict_audit",
+      "status": "synced",
+      "paths": ["docs/product-decisions.json", "README.md"],
+      "evidence": "Prior address-change wording now distinguishes fixed-name access from IP fallback access."
+    },
+    {
+      "class": "downstream_impact",
+      "status": "synced",
+      "paths": ["server/lan-discovery.ts", "server/index.ts", "server/lan-discovery.test.ts", "src/App.tsx", "scripts/launch.ps1", ".env.example"],
+      "evidence": "Implementation commit 3c97bac restricts mDNS advertisement to physical LAN interfaces, redirects port 80 automatically, uses a concrete IP for first pairing, and adopts the stable origin only after a successful client probe."
+    }
+  ],
+  "checks": [
+    {
+      "name": "TypeScript typecheck",
+      "status": "passed",
+      "command": "npm run typecheck",
+      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac."
+    },
+    {
+      "name": "Unit tests",
+      "status": "passed",
+      "command": "npm test",
+      "evidence": "Twelve test files and thirty tests passed, including LAN-name normalization, physical-interface selection, and default-port fallback coverage."
+    },
+    {
+      "name": "Current-host redirect probe",
+      "status": "passed",
+      "command": "curl --noproxy * --resolve opencodexlink.local:80:<current-physical-ip> -I http://opencodexlink.local/",
+      "evidence": "The current physical LAN address returned HTTP 307 from the no-port entry to the running 8787 service on 2026-08-27. Direct host resolution is not claimed because this computer's Clash DNS maps .local names to fake-IP space."
+    }
+  ],
+  "residualScan": {
+    "required": true,
+    "status": "passed",
+    "scope": ["README.md", "server", "src", "scripts", "docs"],
+    "patterns": ["电脑局域网地址变化时固定名称失效", "手机必须输入端口", "只提供IP入口"],
+    "unresolved": []
+  },
+  "gate": {
+    "allowed": true,
+    "blockers": [],
+    "allowedNextAction": "complete_real_phone_resolution_and_ip_fallback_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not expose the service to the public internet, modify Clash or firewall settings, or claim target-phone .local resolution until it is verified on that phone and Wi-Fi."
+  }
+}

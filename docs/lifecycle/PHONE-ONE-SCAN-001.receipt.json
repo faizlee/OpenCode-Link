@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1",
+  "receiptType": "feature_lifecycle_validation_receipt",
+  "featureId": "PHONE-ONE-SCAN-001",
+  "stage": "decision_converged",
+  "manifestDigest": "a63a3c484711dd47b972b3e916d4afdd5cb223a0321ee2a882ae5186adce049d",
+  "allowed": true,
+  "blockers": [],
+  "allowedNextAction": "complete_real_phone_install_and_reopen_acceptance_then_evaluate_delivery_integrated",
+  "stopLine": "Do not claim automatic icon installation or target-phone acceptance without the browser's required user confirmation and a real reopen; HTTPS remains separately deferred.",
+  "decisionAuthorityStatus": "user_confirmed",
+  "evidenceRefs": [
+    "docs/product-decisions.json#PHONE-ONE-SCAN-001",
+    "README.md",
+    "docs/product-decisions.json",
+    "src/App.tsx",
+    "src/styles.css",
+    "vite.config.ts",
+    "index.html",
+    "README defines scan once, confirm the desktop icon once, then use only the icon.",
+    "Structured decision records the phone-only interaction and hides networking implementation details.",
+    "The UI does not promise silent installation; it retains the browser-required first confirmation.",
+    "Implementation commit 3c97bac foregrounds scan-and-add on the pairing screen, keeps technical addresses collapsed, and gives authenticated mobile users one add-to-desktop action with a concise shortcut fallback.",
+    "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac.",
+    "Twelve test files and thirty tests passed after adding the phone shortcut and trusted-device flows.",
+    "The current production build showed the QR setup flow, task list, add-to-home-screen guidance, and task history without horizontal overflow; injected plugin and instruction context was absent after the history fix."
+  ],
+  "invalidationConditions": [
+    "manifest_digest_changed",
+    "decision_authority_changed",
+    "required_consumer_changed",
+    "check_or_residual_scan_changed"
+  ]
+}
