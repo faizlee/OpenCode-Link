@@ -143,7 +143,7 @@ export class SessionStore {
   clear(request: IncomingMessage, response: ServerResponse, secure: boolean) {
     const token = this.validToken(request);
     if (token) this.revoke(token.device.id);
-    const attributes = [`${COOKIE_NAME}=`, "HttpOnly", "SameSite=Strict", "Path=/", "Max-Age=0"];
+    const attributes = [`${COOKIE_NAME}=`, "HttpOnly", "SameSite=Lax", "Path=/", "Max-Age=0"];
     if (secure) attributes.push("Secure");
     response.setHeader("Set-Cookie", attributes.join("; "));
   }
@@ -214,7 +214,10 @@ export class SessionStore {
     const attributes = [
       `${COOKIE_NAME}=${token}`,
       "HttpOnly",
-      "SameSite=Strict",
+      // A QR scan is a top-level navigation from the phone's scanner app.
+      // Lax lets that GET carry the existing device cookie, so rescanning the
+      // same origin refreshes the trusted row instead of creating a duplicate.
+      "SameSite=Lax",
       "Path=/",
       `Max-Age=${COOKIE_MAX_AGE_SECONDS}`,
     ];

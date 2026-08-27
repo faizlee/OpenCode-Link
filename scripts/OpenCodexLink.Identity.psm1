@@ -80,7 +80,8 @@ function Write-OpenCodexLinkJson {
     if (-not (Test-Path -LiteralPath $directory)) {
         New-Item -ItemType Directory -Force -Path $directory | Out-Null
     }
-    ($Object | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $Path -Encoding UTF8
+    $json = $Object | ConvertTo-Json -Depth 8
+    [IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false))
 }
 
 function Get-OpenCodexLinkInstallIdentity {

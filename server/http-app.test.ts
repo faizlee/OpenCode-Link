@@ -48,6 +48,51 @@ function deviceRequest(userAgent: string) {
 }
 
 describe("bridge HTTP console APIs", () => {
+  it("reuses the same trusted-device row when the phone scans again", async () => {
+    const dataRoot = tempDataRoot();
+    const sessions = new SessionStore("test-password", join(dataRoot, "trusted-devices.json"));
+    const pairing = new PairingStore();
+    const identity = createRuntimeIdentity({ dataRoot, port: 18922, installRoot: join(dataRoot, "install") });
+    const app = createBridgeApp({
+      sessions,
+      pairing,
+      identity,
+      appServerReady: () => true,
+      lanDiscovery: {
+        defaultPortReady: false,
+        address: async () => null,
+      },
+    });
+    const listener = await listenApp(app);
+
+    try {
+      const firstTicket = pairing.issue();
+      const firstScan = await fetch(`${listener.origin}/pair/${firstTicket.token}`, {
+        redirect: "manual",
+        headers: { "User-Agent": "Android Test" },
+      });
+      const setCookie = firstScan.headers.get("set-cookie") ?? "";
+      const cookie = setCookie.split(";", 1)[0];
+      const [firstDevice] = sessions.listDevices();
+
+      expect(firstScan.status).toBe(303);
+      expect(setCookie).toContain("SameSite=Lax");
+      expect(sessions.listDevices()).toHaveLength(1);
+
+      const secondTicket = pairing.issue();
+      const secondScan = await fetch(`${listener.origin}/pair/${secondTicket.token}`, {
+        redirect: "manual",
+        headers: { Cookie: cookie, "User-Agent": "Android Test" },
+      });
+
+      expect(secondScan.status).toBe(303);
+      expect(sessions.listDevices()).toHaveLength(1);
+      expect(sessions.listDevices()[0].id).toBe(firstDevice.id);
+    } finally {
+      await listener.close();
+    }
+  });
+
   it("exposes identity, connection without tickets, device edits, and settings on a temp port", async () => {
     const dataRoot = tempDataRoot();
     const identity = createRuntimeIdentity({ dataRoot, port: 18921, installRoot: join(dataRoot, "install") });

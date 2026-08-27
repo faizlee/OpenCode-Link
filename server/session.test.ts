@@ -48,6 +48,7 @@ describe("SessionStore", () => {
     expect(restartedStore.isAuthenticated(requestWithCookie(cookie))).toBe(true);
     expect(restartedStore.listDevices()).toMatchObject([{ name: "Android 手机" }]);
     expect(headers.get("set-cookie")).toContain("Max-Age=34560000");
+    expect(headers.get("set-cookie")).toContain("SameSite=Lax");
   });
 
   it("rejects forged tokens and tokens missing from the trusted-device registry", () => {
@@ -113,6 +114,7 @@ describe("SessionStore", () => {
     expect(store.isAuthenticated(requestWithCookie(cookie))).toBe(false);
     expect(cleared.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(cleared.headers.get("set-cookie")).toContain("Secure");
+    expect(cleared.headers.get("set-cookie")).toContain("SameSite=Lax");
   });
 
   it("renames a device without changing id, token, or adding a row", () => {

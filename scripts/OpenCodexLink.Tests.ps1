@@ -91,6 +91,22 @@ Assert-True (Test-OpenCodexLinkHealthRefreshDue -Now $dueAt -LastAt ([datetime]:
 Assert-True (-not (Test-OpenCodexLinkHealthRefreshDue -Now $dueAt.AddMilliseconds($healthMs - 1) -LastAt $dueAt -IntervalMs $healthMs)) 'health refresh is not due before the interval'
 Assert-True (Test-OpenCodexLinkHealthRefreshDue -Now $dueAt.AddMilliseconds($healthMs) -LastAt $dueAt -IntervalMs $healthMs) 'health refresh is due at the interval'
 
+$jsonRoot = Join-Path $env:TEMP ('ocl-json-' + [guid]::NewGuid().ToString('N'))
+try {
+    $jsonPath = Join-Path $jsonRoot 'tray.json'
+    Write-OpenCodexLinkJson -Path $jsonPath -Object ([pscustomobject]@{ productId = 'OpenCodexLink'; trayPid = 1234 })
+    $jsonBytes = [IO.File]::ReadAllBytes($jsonPath)
+    $hasUtf8Bom = $jsonBytes.Length -ge 3 -and $jsonBytes[0] -eq 0xEF -and $jsonBytes[1] -eq 0xBB -and $jsonBytes[2] -eq 0xBF
+    Assert-True (-not $hasUtf8Bom) 'shared JSON writer emits UTF-8 without BOM for Node interoperability'
+    $jsonText = [Text.Encoding]::UTF8.GetString($jsonBytes)
+    $jsonValue = $jsonText | ConvertFrom-Json
+    Assert-True ($jsonValue.productId -eq 'OpenCodexLink' -and [int]$jsonValue.trayPid -eq 1234) 'shared JSON writer output remains valid JSON'
+} finally {
+    if (Test-Path -LiteralPath $jsonRoot) {
+        Remove-Item -LiteralPath $jsonRoot -Recurse -Force
+    }
+}
+
 $traySource = Get-Content -LiteralPath (Join-Path $here 'tray.ps1') -Raw
 Assert-True ($traySource -match '\$ipcTimer\.Interval\s*=\s*50') 'tray IPC timer stays at 50ms'
 Assert-True ($traySource -match '\$statusTimer\.Interval\s*=\s*Get-OpenCodexLinkHealthRefreshIntervalMs') 'menu/health timer uses the throttled interval'
