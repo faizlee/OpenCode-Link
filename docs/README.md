@@ -23,7 +23,7 @@
 
 - `DESKTOP-TRAY-WEB-CONSOLE-001` 已完成产品决定与设计传播：Windows 托盘管理服务生命周期，默认浏览器承载电脑管理台，手机端继续使用现有 PWA。
 - 管理台使用 faizleecom `time-ai-arms-race-2023@0.1.0` 的 Redline 视觉合同做界面化适配，不把文章组件或第三方品牌资产直接复制进软件。
-- 当前只到 `decision_converged`；托盘、管理台改版、版本握手和安全替换旧服务均未实施，下一步只能准备实施合同。
+- 实施合同已在 `docs/desktop-console-implementation-contract.md` 收敛为 `contract_ready`；托盘、管理台改版、版本握手和安全替换旧服务仍未实施，当前授权下一步由 Cursor CLI 完成端到端实现与验证。
 
 ## 仍需真实手机复验
 
