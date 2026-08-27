@@ -11,7 +11,7 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines reliable first-scan access, automatic stable-name adoption, desktop-side port handling, and silent IP fallback behavior."
+      "evidence": "README defines reliable first-scan access, automatic stable-name adoption with the same trusted-device identity, desktop-side port handling, and silent IP fallback behavior."
     },
     {
       "class": "decision_ledger",
@@ -28,8 +28,8 @@
     {
       "class": "downstream_impact",
       "status": "synced",
-      "paths": ["server/lan-discovery.ts", "server/index.ts", "server/lan-discovery.test.ts", "src/App.tsx", "scripts/launch.ps1", ".env.example"],
-      "evidence": "Implementation commit 3c97bac restricts mDNS advertisement to physical LAN interfaces, redirects port 80 automatically, uses a concrete IP for first pairing, and adopts the stable origin only after a successful client probe."
+      "paths": ["server/lan-discovery.ts", "server/index.ts", "server/session.ts", "server/pairing.ts", "server/lan-discovery.test.ts", "server/session.test.ts", "src/App.tsx", "scripts/launch.ps1", ".env.example"],
+      "evidence": "Implementation commits 3c97bac and 0ffa34c restrict mDNS advertisement to physical LAN interfaces, redirect port 80 automatically, use a concrete IP for first pairing, and adopt the stable origin with the same trusted-device identity after a successful client probe."
     }
   ],
   "checks": [
@@ -37,26 +37,32 @@
       "name": "TypeScript typecheck",
       "status": "passed",
       "command": "npm run typecheck",
-      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac."
+      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 0ffa34c."
     },
     {
       "name": "Unit tests",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Twelve test files and thirty tests passed, including LAN-name normalization, physical-interface selection, and default-port fallback coverage."
+      "evidence": "Twelve test files and thirty-three tests passed, including LAN-name normalization, physical-interface selection, default-port fallback, and stable-origin identity adoption coverage."
     },
     {
       "name": "Current-host redirect probe",
       "status": "passed",
       "command": "curl --noproxy * --resolve opencodexlink.local:80:<current-physical-ip> -I http://opencodexlink.local/",
       "evidence": "The current physical LAN address returned HTTP 307 from the no-port entry to the running 8787 service on 2026-08-27. Direct host resolution is not claimed because this computer's Clash DNS maps .local names to fake-IP space."
+    },
+    {
+      "name": "Stable-origin identity migration probe",
+      "status": "passed",
+      "command": "pair on IP session -> request stable-link -> adopt from fresh origin session -> authenticate",
+      "evidence": "A fresh-origin browser session adopted the existing server-held trusted-device token, authenticated successfully, and left the device count unchanged at 11 before temporary-device cleanup on 2026-08-27."
     }
   ],
   "residualScan": {
     "required": true,
     "status": "passed",
     "scope": ["README.md", "server", "src", "scripts", "docs"],
-    "patterns": ["电脑局域网地址变化时固定名称失效", "手机必须输入端口", "只提供IP入口"],
+    "patterns": ["电脑局域网地址变化时固定名称失效", "手机必须输入端口", "只提供IP入口", "固定名称迁移新增设备"],
     "unresolved": []
   },
   "gate": {

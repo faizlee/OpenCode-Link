@@ -13,7 +13,7 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines first-scan pairing, durable trusted-device behavior, direct reopen, revocation, and the difference between stable-name and IP fallback origins."
+      "evidence": "README defines first-scan pairing, durable trusted-device behavior, repeated-scan identity reuse, stable-origin migration, direct reopen, and revocation."
     },
     {
       "class": "decision_ledger",
@@ -24,14 +24,14 @@
     {
       "class": "conflict_audit",
       "status": "synced",
-      "paths": ["server/session.ts", "README.md"],
-      "evidence": "The fixed 30-day server expiry was removed; retained five-minute wording applies only to new-device QR pairing."
+      "paths": ["server/session.ts", "server/pairing.ts", "server/index.ts", "README.md"],
+      "evidence": "The fixed 30-day server expiry remains removed, QR tickets are one-time, and an already trusted browser refreshes or adopts its existing identity instead of creating a duplicate device."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["server/session.ts", "server/index.ts", "server/session.test.ts", "src/App.tsx", "src/styles.css"],
-      "evidence": "Implementation commit 3c97bac contains the persistent device registry, rolling browser session, local device-management API/UI, revocation, and tests."
+      "evidence": "Implementation commits 3c97bac and 0ffa34c contain the persistent device registry, rolling browser session, local device-management API/UI, revocation, repeated-scan reuse, origin-migration adoption, and tests."
     }
   ],
   "checks": [
@@ -39,26 +39,32 @@
       "name": "TypeScript typecheck",
       "status": "passed",
       "command": "npm run typecheck",
-      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 3c97bac."
+      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 0ffa34c."
     },
     {
       "name": "Unit tests",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Twelve test files and thirty tests passed, including persistent trusted-device, revocation, and stable LAN-name coverage."
+      "evidence": "Twelve test files and thirty-three tests passed, including persistent trusted-device, revocation, repeated-scan reuse, one-time pairing tickets, and cross-origin identity adoption."
     },
     {
       "name": "Production trusted-device restart probe",
       "status": "passed",
       "command": "pair -> authenticate -> restart -> authenticate -> revoke -> reject",
       "evidence": "A temporary device authenticated before and after a production service restart, failed immediately after revocation, and was removed without changing the nine existing trusted devices on 2026-08-27."
+    },
+    {
+      "name": "Production repeated-scan and origin-migration probe",
+      "status": "passed",
+      "command": "pair -> rescan same QR -> adopt stable-link ticket in fresh origin session -> authenticate -> revoke",
+      "evidence": "The trusted-device count moved from 10 to 11 on first pairing, stayed 11 after rescanning the same QR, stayed 11 after a fresh-origin session adopted the stable-link identity, authenticated successfully, and returned to 10 after removing the temporary device on 2026-08-27."
     }
   ],
   "residualScan": {
     "required": true,
     "status": "passed",
     "scope": ["README.md", "server", "src", "docs"],
-    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码"],
+    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码", "重复扫码新增设备", "固定名称迁移新增设备"],
     "unresolved": []
   },
   "gate": {
