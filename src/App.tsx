@@ -3,18 +3,26 @@ import {
   ArrowLeft,
   Check,
   CircleStop,
+  Copy,
   Command,
   FilePenLine,
+  FileText,
+  ImagePlus,
+  Download,
   LoaderCircle,
   LockKeyhole,
   LogOut,
   MessageSquareText,
+  Paperclip,
+  QrCode,
   RefreshCw,
   Search,
   Send,
   Server,
   ShieldQuestion,
   Smartphone,
+  Trash2,
+  Wifi,
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -32,6 +40,45 @@ interface SessionState {
   authenticated: boolean;
 }
 
+interface PairingAddress {
+  name: string;
+  address: string;
+  origin: string;
+  url: string;
+  qr: string;
+  stable?: boolean;
+}
+
+interface PairingState {
+  expiresAt: number;
+  addresses: PairingAddress[];
+}
+
+interface TrustedDevice {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastSeenAt: number;
+  remoteAddress: string;
+}
+
+interface InstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+interface PendingAttachment {
+  id: string;
+  file: File;
+  preview: string | null;
+}
+
+const MAX_ATTACHMENT_COUNT = 20;
+const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+const MAX_BATCH_BYTES = 200 * 1024 * 1024;
+
+const SHORTCUT_READY_KEY = "opencodexlink-shortcut-ready-v2";
+
 async function readSession(): Promise<SessionState> {
   const response = await fetch("/api/session");
   const data = await response.json();
@@ -45,6 +92,16 @@ function formatWhen(timestamp: number) {
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(date);
+}
+
+function formatDeviceWhen(timestamp: number) {
+  const date = new Date(timestamp);
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function statusText(thread: CodexThread) {
@@ -64,6 +121,143 @@ function sourceText(source: CodexThread["source"]) {
 
 function titleFor(thread: CodexThread) {
   return thread.name?.trim() || thread.preview.trim().split("\n")[0] || "未命名线程";
+}
+
+function SetupScreen() {
+  const [pairing, setPairing] = useState<PairingState | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [devices, setDevices] = useState<TrustedDevice[]>([]);
+  const [revoking, setRevoking] = useState("");
+
+  const loadDevices = useCallback(async () => {
+    const response = await fetch("/api/devices", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? "无法读取已配对设备");
+    setDevices(data.devices ?? []);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setCopied(false);
+    try {
+      const response = await fetch("/api/pairing", { method: "POST", cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "无法生成二维码");
+      setPairing(data);
+      setSelectedAddress(0);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    void loadDevices().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+    const timer = window.setInterval(() => void loadDevices().catch(() => undefined), 3_000);
+    return () => window.clearInterval(timer);
+  }, [loadDevices, refresh]);
+  const selected = pairing?.addresses[selectedAddress];
+
+  async function copyAddress() {
+    if (!selected) return;
+    await navigator.clipboard.writeText(selected.origin);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1_500);
+  }
+
+  async function revokeDevice(device: TrustedDevice) {
+    if (!window.confirm(`解除“${device.name}”的访问权限？这台设备下次需要重新扫码。`)) return;
+    setRevoking(device.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/devices/${encodeURIComponent(device.id)}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "解除设备失败");
+      await loadDevices();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setRevoking("");
+    }
+  }
+
+  return (
+    <main className="setup-shell">
+      <section className="setup-card">
+        <header className="setup-heading">
+          <div className="brand-mark"><Smartphone size={25} /><span /><Server size={25} /></div>
+          <p className="eyebrow">局域网连接</p>
+          <h1>用手机继续 Codex</h1>
+          <p className="muted">让手机和电脑连接同一个 Wi-Fi，然后扫描二维码。</p>
+        </header>
+
+        {loading && <div className="setup-state"><LoaderCircle className="spin" /><p>正在查找局域网地址</p></div>}
+        {error && <div className="error-banner">{error}</div>}
+        {!loading && !error && !selected && (
+          <div className="setup-state"><Wifi /><p>没有找到可用的局域网地址，请先让电脑连接 Wi-Fi 或网线。</p></div>
+        )}
+
+        {selected && (
+          <div className="pairing-layout">
+            <div className="qr-frame"><img src={selected.qr} alt="手机配对二维码" /></div>
+            <div className="pairing-copy">
+              <div className="pairing-status"><span />电脑服务已就绪</div>
+              <h2>扫码一次即可</h2>
+              <p>手机打开后按页面提示添加到桌面。以后只需要点击桌面图标，就会自动连接这台电脑。</p>
+              <details className="connection-details">
+                <summary>连接详情</summary>
+                <div className="address-box">
+                  <div><small>{selected.name}</small><strong>{selected.origin}</strong></div>
+                  <button onClick={() => void copyAddress()} aria-label="复制地址">{copied ? <Check size={18} /> : <Copy size={18} />}</button>
+                </div>
+                {pairing && pairing.addresses.length > 1 && (
+                  <div className="address-tabs">
+                    {pairing.addresses.map((address, index) => (
+                      <button className={index === selectedAddress ? "active" : ""} key={address.address} onClick={() => setSelectedAddress(index)}>{address.stable ? "固定名称" : "备用入口"}</button>
+                    ))}
+                  </div>
+                )}
+              </details>
+              <button className="secondary-button" onClick={() => void refresh()}><QrCode size={18} />刷新二维码</button>
+            </div>
+          </div>
+        )}
+
+        <section className="trusted-devices">
+          <div className="trusted-heading">
+            <div>
+              <p className="eyebrow">受信任设备</p>
+              <h2>已配对的手机与浏览器</h2>
+            </div>
+            <button className="plain-icon" onClick={() => void loadDevices()} aria-label="刷新设备"><RefreshCw size={18} /></button>
+          </div>
+          <p className="muted">这些设备以后不需要重复扫码。解除后，该设备会立即失去访问权限。</p>
+          {devices.length === 0 ? (
+            <div className="empty-devices">暂时没有已配对设备</div>
+          ) : (
+            <div className="device-list">
+              {devices.map((device) => (
+                <article className="device-row" key={device.id}>
+                  <Smartphone size={21} />
+                  <div><strong>{device.name}</strong><small>最近使用：{formatDeviceWhen(device.lastSeenAt)}</small></div>
+                  <button disabled={revoking === device.id} onClick={() => void revokeDevice(device)}>
+                    {revoking === device.id ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}
+                    解除
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </section>
+    </main>
+  );
 }
 
 function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
@@ -113,6 +307,100 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   );
 }
 
+function InstallShortcut() {
+  const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const secureContext = window.isSecureContext;
+  const [hidden, setHidden] = useState(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+      || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+    return standalone || window.localStorage.getItem(SHORTCUT_READY_KEY) === "1";
+  });
+
+  useEffect(() => {
+    const onPrompt = (event: Event) => {
+      event.preventDefault();
+      setPrompt(event as InstallPromptEvent);
+    };
+    const onInstalled = () => {
+      window.localStorage.setItem(SHORTCUT_READY_KEY, "1");
+      setHidden(true);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  if (hidden) return null;
+
+  async function install() {
+    if (!prompt) {
+      setShowHelp(true);
+      return;
+    }
+    await prompt.prompt();
+    const choice = await prompt.userChoice;
+    if (choice.outcome === "accepted") {
+      window.localStorage.setItem(SHORTCUT_READY_KEY, "1");
+      setHidden(true);
+    }
+    setPrompt(null);
+  }
+
+  function markReady() {
+    window.localStorage.setItem(SHORTCUT_READY_KEY, "1");
+    setHidden(true);
+  }
+
+  return (
+    <section className="install-shortcut">
+      <Download size={21} />
+      <div>
+        <strong>{secureContext ? "安装到手机" : "添加到手机桌面"}</strong>
+        <p>{showHelp
+          ? secureContext
+            ? "打开浏览器菜单，选择“安装应用”或“添加到主屏幕”。"
+            : "当前局域网地址只能创建网页快捷方式。若 Chrome 菜单点了没反应，请到手机设置里允许 Chrome“创建桌面快捷方式”，再添加一次。"
+          : "第一次添加后，以后点桌面图标就能直接进入，不需要重新扫码。"}</p>
+        {showHelp && <button className="install-done" onClick={markReady}>暂时隐藏</button>}
+      </div>
+      {!showHelp && <button onClick={() => void install()}>{prompt ? "安装" : "查看方法"}</button>}
+    </section>
+  );
+}
+
+function StableAddressAdopter({ authenticated }: { authenticated: boolean }) {
+  useEffect(() => {
+    if (!authenticated || !/^\d{1,3}(\.\d{1,3}){3}$/.test(window.location.hostname)) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 3_000);
+
+    const adopt = async () => {
+      try {
+        const response = await fetch("/api/stable-link", { method: "POST", cache: "no-store", signal: controller.signal });
+        if (!response.ok) return;
+        const link = await response.json() as { origin: string; url: string };
+        const health = await fetch(`${link.origin}/api/health`, { cache: "no-store", signal: controller.signal });
+        if (!health.ok || !(await health.json()).ok) return;
+        window.location.replace(link.url);
+      } catch {
+        // This phone, VPN, browser, or router cannot resolve mDNS. Remaining on
+        // the already-working IP origin is the intentional zero-friction fallback.
+      }
+    };
+
+    void adopt();
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [authenticated]);
+  return null;
+}
+
 function ThreadList({
   threads,
   loading,
@@ -138,7 +426,7 @@ function ThreadList({
     <main className="app-shell thread-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Codex Remote</p>
+          <p className="eyebrow">OpenCodex Link</p>
           <h1>电脑上的任务</h1>
         </div>
         <button className="icon-button" aria-label="退出" onClick={onLogout}><LogOut size={20} /></button>
@@ -148,6 +436,8 @@ function ThreadList({
         <span className={`connection-dot ${connection}`} />
         {connection === "connected" ? "电脑已连接" : connection === "connecting" ? "正在连接电脑" : "连接已断开，正在重试"}
       </div>
+
+      <InstallShortcut />
 
       <section className="search-row">
         <Search size={19} />
@@ -209,7 +499,15 @@ function Conversation({ thread }: { thread: CodexThread }) {
         if (item.type === "reasoning" || item.type === "plan") return null;
         if (item.type === "userMessage") {
           const text = item.content?.filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n") ?? "";
-          return <div className="message-row user" key={item.id ?? `${turn.id}-${index}`}><div className="message-bubble">{text}</div></div>;
+          const imageCount = item.content?.filter((part) => part.type === "image" || part.type === "localImage").length ?? 0;
+          return (
+            <div className="message-row user" key={item.id ?? `${turn.id}-${index}`}>
+              <div className="message-bubble">
+                {text && <div>{text}</div>}
+                {imageCount > 0 && <div className="sent-image-count"><ImagePlus size={15} />{imageCount} 张图片</div>}
+              </div>
+            </div>
+          );
         }
         if (item.type === "agentMessage" && item.text) {
           return (
@@ -299,12 +597,16 @@ function ChatView({
   error: string;
   deliveryNotice: string;
   onBack: () => void;
-  onSend: (text: string) => Promise<boolean>;
+  onSend: (text: string, attachments: File[]) => Promise<boolean>;
   onStop: () => void;
   onResolve: (request: RpcEvent, result: unknown) => void;
 }) {
   const draftKey = `codex-pwa-draft:${response.thread.id}`;
   const [text, setText] = useState(() => window.sessionStorage.getItem(draftKey) ?? "");
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
+  const attachmentInput = useRef<HTMLInputElement>(null);
+  const attachmentsRef = useRef<PendingAttachment[]>([]);
   const approvals = useRef<HTMLDivElement>(null);
   const running = Boolean(activeTurnId(response.thread));
   const queued = response.access === "queued";
@@ -315,13 +617,68 @@ function ChatView({
   }, [draftKey, text]);
 
   useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
+  useEffect(() => () => {
+    for (const attachment of attachmentsRef.current) {
+      if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+    }
+  }, []);
+
+  useEffect(() => {
     if (requests.length) window.requestAnimationFrame(() => approvals.current?.scrollIntoView({ block: "nearest" }));
   }, [requests.length]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!text.trim() || sending || !connected) return;
-    if (await onSend(text)) setText("");
+    if ((!text.trim() && !attachments.length) || sending || !connected) return;
+    if (await onSend(text, attachments.map((attachment) => attachment.file))) {
+      setText("");
+      for (const attachment of attachments) {
+        if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+      }
+      setAttachments([]);
+      setAttachmentError("");
+      if (attachmentInput.current) attachmentInput.current.value = "";
+    }
+  };
+
+  const addAttachments = (files: FileList | null) => {
+    if (!files?.length) return;
+    setAttachmentError("");
+    const selected = Array.from(files);
+    const remaining = MAX_ATTACHMENT_COUNT - attachments.length;
+    if (remaining <= 0) {
+      setAttachmentError(`一次最多发送 ${MAX_ATTACHMENT_COUNT} 个附件`);
+      return;
+    }
+    const accepted = selected.slice(0, remaining);
+    const oversized = accepted.find((file) => file.size > MAX_ATTACHMENT_BYTES);
+    if (oversized) {
+      setAttachmentError(`${oversized.name} 超过 50MB`);
+      return;
+    }
+    const totalBytes = [...attachments.map((attachment) => attachment.file), ...accepted].reduce((total, file) => total + file.size, 0);
+    if (totalBytes > MAX_BATCH_BYTES) {
+      setAttachmentError("一次发送的附件总大小不能超过 200MB");
+      return;
+    }
+    if (selected.length > remaining) setAttachmentError(`已保留前 ${remaining} 个；一次最多发送 ${MAX_ATTACHMENT_COUNT} 个附件`);
+    setAttachments((current) => [...current, ...accepted.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file,
+      preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+    }))]);
+    if (attachmentInput.current) attachmentInput.current.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((current) => current.filter((attachment) => {
+      if (attachment.id === id && attachment.preview) URL.revokeObjectURL(attachment.preview);
+      return attachment.id !== id;
+    }));
+    setAttachmentError("");
   };
 
   return (
@@ -330,7 +687,7 @@ function ChatView({
         <button className="icon-button" onClick={onBack} aria-label="返回"><ArrowLeft size={22} /></button>
         <div>
           <h1>{titleFor(response.thread)}</h1>
-          <p>{response.model} · {response.cwd}</p>
+          <p>{response.model} · 已同步至 {new Date(response.thread.updatedAt * 1000).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · {response.cwd}</p>
         </div>
         {!connected ? <span className="connection-mark">正在重连</span> : queued ? <span className="idle-mark live-sync"><span />电脑端任务</span> : requests.length ? <span className="approval-mark">等待确认</span> : running ? <button className="stop-button" onClick={onStop}><CircleStop size={18} />停止</button> : <span className="idle-mark">空闲</span>}
       </header>
@@ -347,14 +704,32 @@ function ChatView({
       </div>
 
       <form className="composer" onSubmit={submit}>
-        <textarea disabled={!connected} value={text} onChange={(event) => setText(event.target.value)} placeholder={!connected ? "正在重新连接电脑…" : queued ? "发消息到这个电脑任务…" : running ? "继续补充指令…" : "给 Codex 发消息…"} rows={1} />
-        <button disabled={!connected || !text.trim() || sending} aria-label="发送">{sending ? <LoaderCircle className="spin" size={20} /> : <Send size={20} />}</button>
+        {attachments.length > 0 && (
+          <div className="attachment-preview" aria-label={`已选择 ${attachments.length} 个附件`}>
+            {attachments.map((attachment) => (
+              <div className={`attachment-thumb ${attachment.preview ? "image" : "file"}`} key={attachment.id}>
+                {attachment.preview
+                  ? <img src={attachment.preview} alt={attachment.file.name} />
+                  : <div className="attachment-file"><FileText size={22} /><span>{attachment.file.name}</span></div>}
+                <button type="button" onClick={() => removeAttachment(attachment.id)} aria-label={`移除 ${attachment.file.name}`}><X size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        {attachmentError && <div className="attachment-error">{attachmentError}</div>}
+        <div className="composer-row">
+          <input ref={attachmentInput} className="attachment-input" type="file" multiple disabled={!connected || sending} onChange={(event) => addAttachments(event.target.files)} />
+          <button className="attachment-button" type="button" disabled={!connected || sending} onClick={() => attachmentInput.current?.click()} aria-label="选择附件"><Paperclip size={21} /></button>
+          <textarea disabled={!connected || sending} value={text} onChange={(event) => setText(event.target.value)} placeholder={!connected ? "正在重新连接电脑…" : attachments.length ? `已选择 ${attachments.length} 个附件，可补充说明…` : queued ? "发消息到这个电脑任务…" : running ? "继续补充指令…" : "给 Codex 发消息…"} rows={1} />
+          <button className="send-button" disabled={!connected || (!text.trim() && !attachments.length) || sending} aria-label="发送">{sending ? <LoaderCircle className="spin" size={20} /> : <Send size={20} />}</button>
+        </div>
       </form>
     </main>
   );
 }
 
 export default function App() {
+  const setupMode = window.location.pathname === "/setup";
   const [session, setSession] = useState<SessionState>({ loading: true, authRequired: false, authenticated: false });
   const [connection, setConnection] = useState("connecting");
   const [bridgeReady, setBridgeReady] = useState(false);
@@ -370,7 +745,9 @@ export default function App() {
   const navigationToken = useRef(0);
   const listScrollTop = useRef(0);
 
-  useEffect(() => { void readSession().then(setSession).catch((reason) => setError(String(reason))); }, []);
+  useEffect(() => {
+    if (!setupMode) void readSession().then(setSession).catch((reason) => setError(String(reason)));
+  }, [setupMode]);
 
   const loadThreads = useCallback(async (term = "") => {
     setLoading(true);
@@ -466,9 +843,10 @@ export default function App() {
   }, [search, session.authenticated, loadThreads]);
 
   useEffect(() => {
+    if (setupMode) return;
     if (threadIdFromPath(window.location.pathname)) return;
     window.history.replaceState({ ...(window.history.state ?? {}), view: "tasks", listScrollTop: listScrollTop.current }, "", listPath(search));
-  }, [search]);
+  }, [search, setupMode]);
 
   useEffect(() => {
     const threadId = selected?.thread.id;
@@ -512,13 +890,24 @@ export default function App() {
     void openThreadById(thread.id);
   }
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, attachments: File[]) {
     if (!selected) return false;
     setSending(true);
     setError("");
     setDeliveryNotice("");
     try {
-      const result = await bridge.request<{ delivery?: string; notice?: string }>("turn:start", { threadId: selected.thread.id, text });
+      let result: { delivery?: string; notice?: string; attachmentCount?: number };
+      if (attachments.length) {
+        const body = new FormData();
+        body.append("text", text);
+        for (const attachment of attachments) body.append("attachments", attachment, attachment.name);
+        const response = await fetch(`/api/threads/${encodeURIComponent(selected.thread.id)}/messages`, { method: "POST", body });
+        const data = await response.json() as { error?: string; delivery?: string; notice?: string; attachmentCount?: number };
+        if (!response.ok) throw new Error(data.error || "附件发送失败");
+        result = data;
+      } else {
+        result = await bridge.request<{ delivery?: string; notice?: string }>("turn:start", { threadId: selected.thread.id, text });
+      }
       if (result.delivery === "queued") setDeliveryNotice(result.notice ?? "消息已发送到电脑端 Codex。");
       return true;
     } catch (reason) {
@@ -568,9 +957,11 @@ export default function App() {
     [requests, selected],
   );
 
+  if (setupMode) return <SetupScreen />;
   if (session.loading) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在连接</p></div>;
   if (!session.authenticated) return <LoginScreen onAuthenticated={() => setSession((current) => ({ ...current, authenticated: true }))} />;
-  if (opening) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div>;
-  if (selected) return <ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} deliveryNotice={deliveryNotice} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} />;
-  return <ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} />;
+  const stableAddressAdopter = <StableAddressAdopter authenticated={session.authenticated} />;
+  if (opening) return <>{stableAddressAdopter}<div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div></>;
+  if (selected) return <>{stableAddressAdopter}<ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} deliveryNotice={deliveryNotice} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} /></>;
+  return <>{stableAddressAdopter}<ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} /></>;
 }

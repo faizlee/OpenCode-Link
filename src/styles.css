@@ -36,6 +36,14 @@ button { color: inherit; }
 .connection-dot.connected { background: var(--accent); box-shadow: 0 0 0 4px rgba(88,214,155,.12); }
 .connection-dot.connecting { background: #ffd37a; box-shadow: 0 0 0 4px rgba(255,211,122,.12); }
 
+.install-shortcut { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0 0 16px; padding: 14px; border: 1px solid rgba(88,214,155,.22); border-radius: 16px; background: rgba(88,214,155,.08); }
+.install-shortcut > svg { color: var(--accent); }
+.install-shortcut > div { min-width: 0; }
+.install-shortcut strong { display: block; font-size: 14px; }
+.install-shortcut p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.install-shortcut button { min-height: 38px; padding: 0 13px; border: 0; border-radius: 11px; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 750; cursor: pointer; }
+.install-shortcut .install-done { min-height: 34px; margin-top: 10px; }
+
 .search-row { height: 50px; display: flex; align-items: center; gap: 11px; padding: 0 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
 .search-row input { flex: 1; min-width: 0; border: 0; outline: 0; color: var(--text); background: transparent; }
 .search-row input::placeholder { color: #707978; }
@@ -72,6 +80,46 @@ button { color: inherit; }
 .primary-button { display: flex; align-items: center; justify-content: center; height: 50px; margin-top: 8px; border: 0; border-radius: 15px; background: var(--accent); color: var(--accent-ink); font-weight: 750; cursor: pointer; }
 .primary-button:disabled { opacity: .5; cursor: default; }
 
+.setup-shell { min-height: 100vh; display: grid; place-items: center; padding: 28px; background: radial-gradient(circle at 70% 0%, rgba(88,214,155,.15), transparent 34%), var(--bg); }
+.setup-card { width: min(100%, 920px); padding: 34px; border: 1px solid var(--line); border-radius: 28px; background: rgba(23,27,31,.94); box-shadow: 0 28px 80px rgba(0,0,0,.28); }
+.setup-heading .brand-mark { margin-bottom: 24px; }
+.setup-heading h1 { margin: 5px 0 8px; font-size: clamp(32px, 5vw, 48px); letter-spacing: -.045em; }
+.setup-heading .muted { margin-bottom: 0; }
+.setup-state { min-height: 320px; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); text-align: center; }
+.pairing-layout { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); align-items: center; gap: 40px; margin-top: 28px; }
+.qr-frame { padding: 16px; border-radius: 24px; background: #fff; }
+.qr-frame img { display: block; width: 100%; height: auto; border-radius: 8px; }
+.pairing-copy h2 { margin: 13px 0 8px; font-size: 26px; letter-spacing: -.03em; }
+.pairing-copy > p { margin: 0; color: var(--muted); line-height: 1.65; }
+.pairing-status { display: flex; align-items: center; gap: 9px; color: var(--accent); font-size: 13px; }
+.pairing-status span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(88,214,155,.12); }
+.address-box { display: flex; align-items: center; gap: 12px; margin-top: 22px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 15px; background: #111519; }
+.address-box > div { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.address-box small { color: var(--muted); }
+.address-box strong { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+.address-box button { width: 38px; height: 38px; display: grid; flex: 0 0 38px; place-items: center; border: 0; border-radius: 11px; background: rgba(88,214,155,.12); color: var(--accent); cursor: pointer; }
+.connection-details { margin-top: 18px; color: var(--muted); font-size: 13px; }
+.connection-details summary { width: fit-content; cursor: pointer; }
+.connection-details .address-box { margin-top: 12px; }
+.address-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.address-tabs button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+.address-tabs button.active { border-color: rgba(88,214,155,.3); background: rgba(88,214,155,.1); color: var(--accent); }
+.secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin-top: 18px; padding: 0 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.035); color: var(--text); cursor: pointer; }
+.trusted-devices { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--line); }
+.trusted-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.trusted-heading h2 { margin: 5px 0 0; font-size: 21px; }
+.trusted-heading .plain-icon { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); }
+.trusted-devices > .muted { margin: 9px 0 18px; line-height: 1.55; }
+.empty-devices { padding: 20px; border: 1px dashed var(--line); border-radius: 15px; color: var(--muted); text-align: center; }
+.device-list { display: grid; gap: 9px; }
+.device-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 15px; background: #111519; }
+.device-row > svg { color: var(--accent); }
+.device-row > div { min-width: 0; display: grid; gap: 4px; }
+.device-row strong, .device-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-row small { color: var(--muted); }
+.device-row button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid rgba(255,141,133,.2); border-radius: 10px; background: rgba(255,141,133,.07); color: var(--danger); cursor: pointer; }
+.device-row button:disabled { opacity: .5; }
+
 .chat-shell { width: 100%; min-width: 0; height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; overflow: hidden; background: var(--bg); }
 .chat-shell > * { min-width: 0; max-width: 100%; }
 .chat-header { position: sticky; top: 0; z-index: 5; padding: max(12px, env(safe-area-inset-top)) 14px 12px; border-bottom: 1px solid var(--line); background: rgba(16,19,22,.92); backdrop-filter: blur(16px); }
@@ -90,6 +138,7 @@ button { color: inherit; }
 .message-row.user { align-items: flex-end; }
 .message-bubble { min-width: 0; max-width: min(86%, 680px); overflow-wrap: anywhere; word-break: break-word; line-height: 1.65; }
 .user .message-bubble { padding: 11px 14px; border-radius: 18px 18px 5px 18px; background: #29312f; }
+.sent-image-count { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; color: #b7c1bd; font-size: 12px; }
 .agent-label { margin-bottom: 7px; color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: .05em; }
 .agent .message-bubble { width: 100%; max-width: 100%; }
 .markdown { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
@@ -126,12 +175,25 @@ button { color: inherit; }
 
 .chat-error { width: min(calc(100% - 24px), 780px); margin: 6px auto; font-size: 12px; }
 .read-only-banner { width: min(calc(100% - 24px), 780px); margin: 6px auto; padding: 11px 13px; border: 1px solid rgba(242, 190, 91, .35); border-radius: 12px; background: rgba(242, 190, 91, .1); color: #f4d49a; font-size: 13px; line-height: 1.5; }
-.composer { width: 100%; min-width: 0; display: flex; align-items: flex-end; gap: 9px; padding: 10px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(16,19,22,.94); backdrop-filter: blur(16px); }
+.composer { width: 100%; min-width: 0; padding: 9px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(16,19,22,.94); backdrop-filter: blur(16px); }
+.composer-row { min-width: 0; display: flex; align-items: flex-end; gap: 8px; }
 .composer textarea { flex: 1 1 0; width: 0; min-width: 0; min-height: 46px; max-height: 140px; resize: none; border: 1px solid var(--line); border-radius: 16px; outline: 0; padding: 12px 14px; background: var(--panel); color: var(--text); line-height: 1.45; }
 .composer textarea:disabled { color: var(--muted); background: #161a1e; }
 .composer textarea:focus { border-color: rgba(88,214,155,.35); }
-.composer button { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; border: 0; border-radius: 15px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.composer button { display: grid; place-items: center; border: 0; cursor: pointer; }
+.composer .send-button, .composer .attachment-button { flex: 0 0 46px; width: 46px; height: 46px; border-radius: 15px; }
+.composer .send-button { background: var(--accent); color: var(--accent-ink); }
+.composer .attachment-button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
 .composer button:disabled { opacity: .35; cursor: default; }
+.attachment-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.attachment-preview { display: flex; gap: 8px; max-width: 820px; margin: 0 auto 8px; overflow-x: auto; padding: 1px 1px 4px; scrollbar-width: thin; }
+.attachment-thumb { position: relative; flex: 0 0 68px; width: 68px; height: 68px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.attachment-thumb.file { flex-basis: 132px; width: 132px; }
+.attachment-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.attachment-thumb button { position: absolute; top: 3px; right: 3px; width: 23px; height: 23px; border-radius: 50%; background: rgba(7, 10, 12, .82); color: #fff; }
+.attachment-file { width: 100%; height: 100%; display: flex; align-items: center; gap: 7px; padding: 10px 27px 10px 9px; color: var(--muted); }
+.attachment-file span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.attachment-error { max-width: 820px; margin: 0 auto 7px; color: var(--danger); font-size: 12px; }
 
 .spin { animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -141,6 +203,13 @@ button { color: inherit; }
   .thread-card { padding: 20px; }
   .chat-header { padding-inline: 22px; }
   .composer { padding-inline: calc((100% - 820px) / 2 + 15px); }
+}
+
+@media (max-width: 699px) {
+  .setup-shell { padding: 16px; }
+  .setup-card { padding: 22px; }
+  .pairing-layout { grid-template-columns: 1fr; gap: 24px; }
+  .qr-frame { width: min(100%, 320px); margin: 0 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

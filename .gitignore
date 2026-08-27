@@ -5,3 +5,4 @@ dist-server/
 *.log
 *.tsbuildinfo
 work/
+release/

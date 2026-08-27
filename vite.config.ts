@@ -7,16 +7,37 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["codex-remote.svg"],
+      includeAssets: ["codex-remote.svg", "codex-remote-192.png", "codex-remote-512.png"],
       manifest: {
-        name: "Codex Remote",
-        short_name: "Codex",
+        id: "/",
+        name: "OpenCodex Link",
+        short_name: "Codex Link",
         description: "在手机上继续使用电脑里的 Codex",
+        lang: "zh-CN",
         theme_color: "#101316",
         background_color: "#101316",
         display: "standalone",
         start_url: "/",
+        scope: "/",
         icons: [
+          {
+            src: "/codex-remote-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/codex-remote-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/codex-remote-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable"
+          },
           {
             src: "/codex-remote.svg",
             sizes: "any",
@@ -38,4 +59,3 @@ export default defineConfig({
     }
   }
 });
-

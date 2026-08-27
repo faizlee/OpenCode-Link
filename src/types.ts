@@ -7,7 +7,7 @@ export interface ThreadItem {
   type: string;
   id?: string;
   clientId?: string | null;
-  content?: Array<{ type: string; text?: string; [key: string]: unknown }>;
+  content?: Array<{ type: string; text?: string; path?: string; url?: string; [key: string]: unknown }>;
   text?: string;
   phase?: string | null;
   command?: string;
