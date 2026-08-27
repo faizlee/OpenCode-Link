@@ -30,13 +30,17 @@ PWA 永远不会调用 `thread/resume` 或直接启动回合，因此不会成�
 - 本机宿主验证覆盖设置页、任务列表、历史同步、移动端布局、可信设备重启恢复与解除、固定名称端口转发和 Windows 便携包。
 - 不把电脑浏览器验证冒充手机验收。真实手机上的 `.local` 解析、桌面图标安装和附件发送仍需在目标手机与 Wi-Fi 环境中复验；不支持固定名称时继续使用扫码得到的 IP 入口。
 
-## 已确认的电脑端管理方向（尚未实施）
+## 电脑端托盘与管理台（实现候选）
 
-电脑端将增加一个轻量 Windows 托盘控制器，由它统一负责后台服务的启动、停止、重启、状态、版本和新旧版本切换。点击托盘中的“打开 OpenCodex Link”后，仍使用默认浏览器进入本机管理台；扫码、设备、连接和设置不会重做成一套完整原生界面。手机端继续使用现有网页/PWA。
+源码已落地轻量 Windows 托盘作为后台服务生命周期的唯一 Owner，以及默认浏览器中的五区 Redline 管理台。这是实现候选，不是已完成交付：真实 NotifyIcon 可见性、跨目录换版、目标机便携包和手机回归仍待主控人工验收，因此不把状态写成 `delivery_integrated`。
 
-管理台确定采用“概览、设备、连接、设置、关于”五个区域，视觉以 faizleecom 的 `time-ai-arms-race-2023@0.1.0` Redline 正式合同为来源。迁移的是暖白纸面、黑色正文、克制信号红、衬线标题、无衬线操作文字、细边框、无阴影和留白节奏，不照搬文章组件、连续长文布局、第三方品牌或素材。详细设计见 [`docs/desktop-console-design.md`](docs/desktop-console-design.md)。
+- 双击 `OpenCodex Link.cmd` 会唤醒托盘；由托盘启动或交接后台服务，并用默认浏览器打开本机管理台。
+- 关闭浏览器不会停止服务；退出托盘时会确认是否同时停止服务。
+- 管理台路由为 `/setup`、`/setup/devices`、`/setup/connection`、`/setup/settings`、`/setup/about`。二维码只在点击「添加手机」后签发。
+- 新版只停止能够证明属于 OpenCodex Link 的旧实例；端口被未知进程占用时明确拒绝，不按端口杀进程。
+- 设备授权仍在 `%LOCALAPPDATA%\OpenCodexLink\`，不在便携包目录。升级或换目录不得把凭据打进压缩包。
 
-以上是已确认产品方向，不代表托盘、管理台改版或旧服务替换机制已经实现；当前版本仍按下文的命令/脚本方式运行。
+手机端继续使用现有网页/PWA 任务界面。详细设计见 [`docs/desktop-console-design.md`](docs/desktop-console-design.md)。
 
 ## 本地开发
 
@@ -51,13 +55,13 @@ npm run dev
 
 ## 最简单的局域网使用方式
 
-双击项目根目录的 `OpenCodex Link.cmd`。软件会完成构建、在后台启动服务，并在电脑浏览器打开配对页：
+双击项目根目录的 `OpenCodex Link.cmd`。日常启动由托盘 Owner 管理：开发目录若仍有 `src` 会先构建，便携包没有源码则直接启动已构建产物。托盘负责后台服务，并在电脑浏览器打开管理台：
 
 ```text
 http://127.0.0.1:8787/setup
 ```
 
-手机和电脑连接同一个 Wi-Fi，扫描页面上的二维码即可进入，不需要手工输入密码。二维码只包含局域网地址和一个五分钟有效的临时凭证，不包含 Codex/ChatGPT 登录信息。
+在概览中点击「添加手机」后再扫描二维码。二维码只包含局域网地址和一个五分钟有效的临时凭证，不包含 Codex/ChatGPT 登录信息。
 
 手机端的日常入口优先使用固定名称，不需要记住电脑 IP 或端口：
 
@@ -101,7 +105,15 @@ npm start
 npm run package:windows
 ```
 
-生成 `release/OpenCodexLink-Windows.zip`。解压到任意目录后，双击其中的 `OpenCodex Link.cmd` 即可；包内自带 Node.js 运行时，目标电脑不需要另装 Node.js。
+生成 `release/OpenCodexLink-Windows.zip`。解压后即可使用，包含：
+
+- 前端 `dist`、服务 `dist-server`、生产 `node_modules`、捆绑的 `runtime/node.exe`
+- `package.json`、`package-lock.json`、`build-info.json`、README
+- 托盘脚本与模块、图标、`OpenCodex Link.cmd` / `Stop OpenCodex Link.cmd`
+
+包内不含 `src`、`server` 源码、`.env`、真实设备数据或凭据。目标电脑不需要另装 Node.js。启动默认由托盘管理；设备数据继续使用固定的 `%LOCALAPPDATA%\OpenCodexLink\`。覆盖同一解压目录时保留已有 `.env` 密码，但密码不会进入 zip。
+
+仓库内可用 `npm run test:package` 校验包清单，并在临时目录、随机非 8787 端口探测 `/api/health`、`/api/runtime` 和 `/setup`，不启动真实托盘。
 
 ## 从手机进入
 

@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Check,
   CircleStop,
-  Copy,
   Command,
   FilePenLine,
   FileText,
@@ -14,21 +13,19 @@ import {
   LogOut,
   MessageSquareText,
   Paperclip,
-  QrCode,
   RefreshCw,
   Search,
   Send,
   Server,
   ShieldQuestion,
   Smartphone,
-  Trash2,
-  Wifi,
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BridgeClient, upsertRequest } from "./bridge";
-import { listPath, threadIdFromPath, threadPath } from "./navigation";
+import ConsoleApp from "./console/ConsoleApp";
+import { isDesktopConsolePath, listPath, threadIdFromPath, threadPath } from "./navigation";
 import { activeTurnId, applyThreadEvent } from "./thread-state";
 import type { BridgeMessage, CodexThread, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
 
@@ -38,28 +35,6 @@ interface SessionState {
   loading: boolean;
   authRequired: boolean;
   authenticated: boolean;
-}
-
-interface PairingAddress {
-  name: string;
-  address: string;
-  origin: string;
-  url: string;
-  qr: string;
-  stable?: boolean;
-}
-
-interface PairingState {
-  expiresAt: number;
-  addresses: PairingAddress[];
-}
-
-interface TrustedDevice {
-  id: string;
-  name: string;
-  createdAt: number;
-  lastSeenAt: number;
-  remoteAddress: string;
 }
 
 interface InstallPromptEvent extends Event {
@@ -94,16 +69,6 @@ function formatWhen(timestamp: number) {
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(date);
 }
 
-function formatDeviceWhen(timestamp: number) {
-  const date = new Date(timestamp);
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 function statusText(thread: CodexThread) {
   if (thread.status.type === "active") {
     if (thread.status.activeFlags?.includes("waitingOnApproval")) return "等待批准";
@@ -121,143 +86,6 @@ function sourceText(source: CodexThread["source"]) {
 
 function titleFor(thread: CodexThread) {
   return thread.name?.trim() || thread.preview.trim().split("\n")[0] || "未命名线程";
-}
-
-function SetupScreen() {
-  const [pairing, setPairing] = useState<PairingState | null>(null);
-  const [selectedAddress, setSelectedAddress] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [devices, setDevices] = useState<TrustedDevice[]>([]);
-  const [revoking, setRevoking] = useState("");
-
-  const loadDevices = useCallback(async () => {
-    const response = await fetch("/api/devices", { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error ?? "无法读取已配对设备");
-    setDevices(data.devices ?? []);
-  }, []);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    setCopied(false);
-    try {
-      const response = await fetch("/api/pairing", { method: "POST", cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "无法生成二维码");
-      setPairing(data);
-      setSelectedAddress(0);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-    void loadDevices().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
-    const timer = window.setInterval(() => void loadDevices().catch(() => undefined), 3_000);
-    return () => window.clearInterval(timer);
-  }, [loadDevices, refresh]);
-  const selected = pairing?.addresses[selectedAddress];
-
-  async function copyAddress() {
-    if (!selected) return;
-    await navigator.clipboard.writeText(selected.origin);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1_500);
-  }
-
-  async function revokeDevice(device: TrustedDevice) {
-    if (!window.confirm(`解除“${device.name}”的访问权限？这台设备下次需要重新扫码。`)) return;
-    setRevoking(device.id);
-    setError("");
-    try {
-      const response = await fetch(`/api/devices/${encodeURIComponent(device.id)}`, { method: "DELETE" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "解除设备失败");
-      await loadDevices();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setRevoking("");
-    }
-  }
-
-  return (
-    <main className="setup-shell">
-      <section className="setup-card">
-        <header className="setup-heading">
-          <div className="brand-mark"><Smartphone size={25} /><span /><Server size={25} /></div>
-          <p className="eyebrow">局域网连接</p>
-          <h1>用手机继续 Codex</h1>
-          <p className="muted">让手机和电脑连接同一个 Wi-Fi，然后扫描二维码。</p>
-        </header>
-
-        {loading && <div className="setup-state"><LoaderCircle className="spin" /><p>正在查找局域网地址</p></div>}
-        {error && <div className="error-banner">{error}</div>}
-        {!loading && !error && !selected && (
-          <div className="setup-state"><Wifi /><p>没有找到可用的局域网地址，请先让电脑连接 Wi-Fi 或网线。</p></div>
-        )}
-
-        {selected && (
-          <div className="pairing-layout">
-            <div className="qr-frame"><img src={selected.qr} alt="手机配对二维码" /></div>
-            <div className="pairing-copy">
-              <div className="pairing-status"><span />电脑服务已就绪</div>
-              <h2>扫码一次即可</h2>
-              <p>手机打开后按页面提示添加到桌面。以后只需要点击桌面图标，就会自动连接这台电脑。</p>
-              <details className="connection-details">
-                <summary>连接详情</summary>
-                <div className="address-box">
-                  <div><small>{selected.name}</small><strong>{selected.origin}</strong></div>
-                  <button onClick={() => void copyAddress()} aria-label="复制地址">{copied ? <Check size={18} /> : <Copy size={18} />}</button>
-                </div>
-                {pairing && pairing.addresses.length > 1 && (
-                  <div className="address-tabs">
-                    {pairing.addresses.map((address, index) => (
-                      <button className={index === selectedAddress ? "active" : ""} key={address.address} onClick={() => setSelectedAddress(index)}>{address.stable ? "固定名称" : "备用入口"}</button>
-                    ))}
-                  </div>
-                )}
-              </details>
-              <button className="secondary-button" onClick={() => void refresh()}><QrCode size={18} />刷新二维码</button>
-            </div>
-          </div>
-        )}
-
-        <section className="trusted-devices">
-          <div className="trusted-heading">
-            <div>
-              <p className="eyebrow">受信任设备</p>
-              <h2>已配对的手机与浏览器</h2>
-            </div>
-            <button className="plain-icon" onClick={() => void loadDevices()} aria-label="刷新设备"><RefreshCw size={18} /></button>
-          </div>
-          <p className="muted">这些设备以后不需要重复扫码。解除后，该设备会立即失去访问权限。</p>
-          {devices.length === 0 ? (
-            <div className="empty-devices">暂时没有已配对设备</div>
-          ) : (
-            <div className="device-list">
-              {devices.map((device) => (
-                <article className="device-row" key={device.id}>
-                  <Smartphone size={21} />
-                  <div><strong>{device.name}</strong><small>最近使用：{formatDeviceWhen(device.lastSeenAt)}</small></div>
-                  <button disabled={revoking === device.id} onClick={() => void revokeDevice(device)}>
-                    {revoking === device.id ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}
-                    解除
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </section>
-    </main>
-  );
 }
 
 function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
@@ -729,7 +557,7 @@ function ChatView({
 }
 
 export default function App() {
-  const setupMode = window.location.pathname === "/setup";
+  const setupMode = isDesktopConsolePath(window.location.pathname);
   const [session, setSession] = useState<SessionState>({ loading: true, authRequired: false, authenticated: false });
   const [connection, setConnection] = useState("connecting");
   const [bridgeReady, setBridgeReady] = useState(false);
@@ -957,7 +785,7 @@ export default function App() {
     [requests, selected],
   );
 
-  if (setupMode) return <SetupScreen />;
+  if (setupMode) return <ConsoleApp />;
   if (session.loading) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在连接</p></div>;
   if (!session.authenticated) return <LoginScreen onAuthenticated={() => setSession((current) => ({ ...current, authenticated: true }))} />;
   const stableAddressAdopter = <StableAddressAdopter authenticated={session.authenticated} />;

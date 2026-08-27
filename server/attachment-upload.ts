@@ -25,7 +25,7 @@ export interface UploadedAttachmentMessage {
   discard: () => Promise<void>;
 }
 
-function uploadRoot() {
+export function uploadRoot() {
   return process.env.CODEX_PWA_UPLOAD_DIR
     ?? join(process.env.LOCALAPPDATA ?? tmpdir(), "OpenCodexLink", "uploads");
 }

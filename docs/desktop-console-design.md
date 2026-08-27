@@ -1,7 +1,7 @@
 # OpenCodex Link 电脑端管理台设计
 
-> 状态：`user_confirmed / decision_converged / implementation_not_started`  
-> 产品决定：`DESKTOP-TRAY-WEB-CONSOLE-001`  
+> 状态：`user_confirmed / contract_ready / implementation_candidate`
+> 产品决定：`DESKTOP-TRAY-WEB-CONSOLE-001`
 > 确认日期：2026-08-27
 
 ## 一、产品结构
@@ -130,8 +130,8 @@ OpenCodex Link 采用三个清晰的执行面：
 
 ## 七、当前状态与停止线
 
-当前发布包仍使用命令/脚本启动和停止；托盘、版本握手、安全替换旧服务、管理台信息架构与 Redline 改版都尚未实现。
+源码、托盘脚本、身份证明、五区 Redline 管理台和 Windows 便携包已作为实现候选落地。自动验证覆盖身份分类、设备改名/批量解除、管理台路由、样式隔离、构建和包清单；包冒烟在临时目录和随机非 8787 端口探测 health/runtime/setup，不启动真实托盘。
 
-下一步允许准备一份覆盖真实用户成果的实施合同。合同验收必须包括：托盘可见状态、打开管理台、关闭浏览器后服务继续运行、新版替换旧服务、未知端口占用保护、现有设备数据保留、Redline 桌面体验和窄屏可用性。
+尚未完成、因此不得写成交付通过的项：真实 NotifyIcon 可见与菜单、关闭浏览器后服务仍运行、两目录旧→新替换且设备数据保留、未知占用 fail-closed 的人工对照、五区/Redline/390px 观感、手机 PWA 回归、目标机解压便携包且无需额外 Node。
 
-在获得独立实施授权前，不修改代码、运行配置、页面样式、安装包或服务进程。
+在主控完成上述真实验收前，不把本功能提升为 `delivery_integrated`，也不做 force、PR 或 release。

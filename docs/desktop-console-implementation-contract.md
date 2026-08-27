@@ -1,9 +1,9 @@
 # OpenCodex Link 托盘与 Redline 管理台实施合同
 
-> Feature：`DESKTOP-TRAY-WEB-CONSOLE-001`  
-> 状态：`contract_ready`  
-> 基线：`955549e`，分支 `codex/desktop-tray-redline`，工作区 `E:/work/project/codexPWA`  
-> 实施主控：Cursor CLI  
+> Feature：`DESKTOP-TRAY-WEB-CONSOLE-001`
+> 状态：`contract_ready` / 源码为 `implementation_candidate`；未做真实 NotifyIcon 与换版人工验收，不是 `delivery_integrated`
+> 基线：分支 `codex/desktop-tray-redline`，工作区 `E:/work/project/codexPWA`
+> 实施主控：Cursor CLI
 > 用户授权：2026-08-27 当前对话明确要求开始实施
 
 ## 1. 真实用户成果
@@ -12,12 +12,15 @@
 
 ## 2. 当前运行合同
 
-- `OpenCodex Link.cmd -> scripts/launch.ps1` 构建或启动隐藏 Node 服务并打开 `/setup`。
-- 便携包没有 `src`，因此发现 8787 已有健康响应时不会替换旧服务。
-- `/api/health` 没有产品、版本、构建、实例或安装根身份。
-- `scripts/stop.ps1` 通过端口和模糊命令行识别进程，没有持久 PID/实例证明，且直接终止进程。
-- 设备授权保存在 `%LOCALAPPDATA%/OpenCodexLink/trusted-devices.json`，不在便携包目录。
-- `/setup` 当前一打开就签发二维码，只有设备列表，没有五区管理台。
+以下描述的是本分支已经落地的实现候选，不是人工验收通过。
+
+- `OpenCodex Link.cmd -> scripts/launch.ps1` 只负责唤醒托盘；`scripts/tray.ps1` 是服务生命周期唯一 Owner。
+- 开发目录若存在 `src` 才构建；便携包不含源码，日常启动只运行已构建产物。
+- `GET /api/health` 在兼容字段之外提供 `productId`、`version`、`buildId`、`instanceId`。`GET /api/runtime` 仅回环，不返回 `controlToken`。停止优先走回环 `POST /api/runtime/shutdown` 加控制令牌。
+- `scripts/stop.ps1` 先请求托盘，再按 `runtime.json`、进程与回环身份证明停止；分类为 Unknown/Unproven 时拒绝，不按端口杀进程。
+- 设备授权仍在 `%LOCALAPPDATA%/OpenCodexLink/trusted-devices.json`，不在便携包目录。
+- `/setup/*` 进入五区管理台；二维码按需签发。手机 `/` 仍是原任务界面。
+- Windows 便携包含 `dist`、`dist-server`、生产 `node_modules`、捆绑 Node、托盘模块/脚本/图标、README、cmd 与 package 元数据；不含 `src`、`server` 源码、`.env`、真实设备数据或凭据。覆盖同一解压目录时保留已有 `.env`，但 zip 本身不带密码。
 
 ## 3. 技术选型
 

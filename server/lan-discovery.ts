@@ -107,6 +107,10 @@ export class LanDiscovery {
     };
   }
 
+  get defaultPortReady() {
+    return Boolean(this.redirectServer);
+  }
+
   async stop() {
     if (this.redirectServer) await new Promise<void>((resolve) => this.redirectServer?.close(() => resolve()));
     if (this.responder) await this.responder.shutdown();

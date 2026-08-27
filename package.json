@@ -12,6 +12,7 @@
     "test": "vitest run --exclude dist-server/** --exclude release/**",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -b --pretty false",
     "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1",
+    "test:package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/OpenCodexLink.Package.Tests.ps1",
     "icons:generate": "node scripts/generate-icons.mjs",
     "protocol:generate": "codex app-server generate-ts --out work/protocol-schema",
     "probe": "node work/probe-app-server.mjs"

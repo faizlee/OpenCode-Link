@@ -9,3 +9,8 @@ for (const size of [192, 512]) {
     .png()
     .toFile(fileURLToPath(new URL(`../public/codex-remote-${size}.png`, import.meta.url)));
 }
+
+await sharp(source)
+  .resize(32, 32)
+  .png()
+  .toFile(fileURLToPath(new URL("../public/opencodex-link-tray.png", import.meta.url)));

@@ -21,9 +21,11 @@ interface StoredDevice {
 export interface TrustedDevice {
   id: string;
   name: string;
+  kind: string;
   createdAt: number;
   lastSeenAt: number;
   remoteAddress: string;
+  current?: boolean;
 }
 
 interface DeviceFile {
@@ -66,13 +68,27 @@ function deviceName(userAgent = "") {
   return "已配对设备";
 }
 
-function publicDevice(device: StoredDevice): TrustedDevice {
+export function deviceKind(name: string) {
+  if (/iPad/i.test(name)) return "iPad";
+  if (/iPhone/i.test(name)) return "iPhone";
+  if (/Android/i.test(name)) return "Android 手机";
+  if (/Windows/i.test(name)) return "Windows 浏览器";
+  if (/Macintosh|Mac OS|Mac 浏览器/i.test(name)) return "Mac 浏览器";
+  return "已配对设备";
+}
+
+function publicDevice(device: StoredDevice, currentId?: string): TrustedDevice {
   const { tokenHash: _tokenHash, ...visible } = device;
-  return visible;
+  return {
+    ...visible,
+    kind: deviceKind(device.name),
+    ...(currentId === device.id ? { current: true } : {}),
+  };
 }
 
 export class SessionStore {
   private devices: StoredDevice[] = [];
+  loadError = false;
 
   constructor(
     readonly password = process.env.CODEX_PWA_PASSWORD ?? "",
@@ -137,18 +153,41 @@ export class SessionStore {
     return Boolean(this.validToken(request));
   }
 
-  listDevices() {
+  listDevices(request?: IncomingMessage) {
+    const currentId = request ? this.validToken(request)?.device.id : undefined;
     return [...this.devices]
       .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
-      .map(publicDevice);
+      .map((device) => publicDevice(device, currentId));
+  }
+
+  rename(id: string, name: string) {
+    if (this.loadError) return false;
+    const device = this.devices.find((entry) => entry.id === id);
+    const trimmed = name.trim();
+    if (!device || !trimmed) return false;
+    device.name = trimmed;
+    this.save();
+    return true;
   }
 
   revoke(id: string) {
+    if (this.loadError) return false;
     const next = this.devices.filter((device) => device.id !== id);
     if (next.length === this.devices.length) return false;
     this.devices = next;
     this.save();
     return true;
+  }
+
+  revokeMany(ids: string[]) {
+    if (this.loadError) return { revoked: [] as string[] };
+    const selected = new Set(ids.filter(Boolean));
+    const revoked = ids.filter((id) => this.devices.some((device) => device.id === id) && selected.delete(id));
+    if (!revoked.length) return { revoked };
+    const remove = new Set(revoked);
+    this.devices = this.devices.filter((device) => !remove.has(device.id));
+    this.save();
+    return { revoked };
   }
 
   private validToken(request: IncomingMessage) {
@@ -187,14 +226,18 @@ export class SessionStore {
     if (!this.storagePath || !existsSync(this.storagePath)) return;
     try {
       const parsed = JSON.parse(readFileSync(this.storagePath, "utf8")) as DeviceFile;
-      if (parsed.schemaVersion === 1 && Array.isArray(parsed.devices)) this.devices = parsed.devices;
+      if (parsed.schemaVersion === 1 && Array.isArray(parsed.devices)) {
+        this.devices = parsed.devices;
+        return;
+      }
+      this.loadError = true;
     } catch {
-      this.devices = [];
+      this.loadError = true;
     }
   }
 
   private save() {
-    if (!this.storagePath) return;
+    if (!this.storagePath || this.loadError) return;
     mkdirSync(dirname(this.storagePath), { recursive: true });
     writeFileSync(this.storagePath, JSON.stringify({ schemaVersion: 1, devices: this.devices } satisfies DeviceFile, null, 2), "utf8");
   }
