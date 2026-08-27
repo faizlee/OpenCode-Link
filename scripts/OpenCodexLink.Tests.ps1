@@ -84,6 +84,22 @@ try {
 }
 Assert-True $rejectedEnv 'package-root .env is rejected in zip entries'
 
+$healthMs = Get-OpenCodexLinkHealthRefreshIntervalMs
+Assert-True ($healthMs -ge 800 -and $healthMs -le 1000) ('health refresh interval is 800-1000ms, got ' + $healthMs)
+$dueAt = [datetime]::UtcNow
+Assert-True (Test-OpenCodexLinkHealthRefreshDue -Now $dueAt -LastAt ([datetime]::MinValue) -IntervalMs $healthMs) 'first health refresh is due immediately'
+Assert-True (-not (Test-OpenCodexLinkHealthRefreshDue -Now $dueAt.AddMilliseconds($healthMs - 1) -LastAt $dueAt -IntervalMs $healthMs)) 'health refresh is not due before the interval'
+Assert-True (Test-OpenCodexLinkHealthRefreshDue -Now $dueAt.AddMilliseconds($healthMs) -LastAt $dueAt -IntervalMs $healthMs) 'health refresh is due at the interval'
+
+$traySource = Get-Content -LiteralPath (Join-Path $here 'tray.ps1') -Raw
+Assert-True ($traySource -match '\$ipcTimer\.Interval\s*=\s*50') 'tray IPC timer stays at 50ms'
+Assert-True ($traySource -match '\$statusTimer\.Interval\s*=\s*Get-OpenCodexLinkHealthRefreshIntervalMs') 'menu/health timer uses the throttled interval'
+$ipcTick = [regex]::Match($traySource, '(?s)\$ipcTimer\.add_Tick\(\{(.*?)\}\s*\)')
+Assert-True $ipcTick.Success 'tray IPC tick handler is present'
+Assert-True ($ipcTick.Groups[1].Value -match 'Receive-OpenCodexLinkTrayIpc') 'IPC tick still pumps the command queue'
+Assert-True ($ipcTick.Groups[1].Value -notmatch 'Refresh-OpenCodexLinkMenu') 'IPC tick does not refresh the menu'
+Assert-True ($ipcTick.Groups[1].Value -notmatch 'Update-OpenCodexLinkTrayStatus') 'IPC tick does not poll /api/health'
+
 $tempRoot = Join-Path $env:TEMP ('ocl-tray-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 $listener = $null

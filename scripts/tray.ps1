@@ -127,6 +127,18 @@ function Update-OpenCodexLinkTrayStatus {
     }
 }
 
+$script:lastHealthRefreshAt = [datetime]::MinValue
+function Update-OpenCodexLinkTrayStatusIfDue {
+    param([switch]$Force)
+    $now = [datetime]::UtcNow
+    if (-not $Force -and -not (Test-OpenCodexLinkHealthRefreshDue -Now $now -LastAt $script:lastHealthRefreshAt)) {
+        return $false
+    }
+    Update-OpenCodexLinkTrayStatus
+    $script:lastHealthRefreshAt = $now
+    return $true
+}
+
 function Start-OpenCodexLinkOwnedService {
     $null = Start-OpenCodexLinkService -InstallRoot $script:state.InstallRoot -DataDir $script:state.DataDir -Port $script:state.Port
     Update-OpenCodexLinkTrayStatus
@@ -201,7 +213,7 @@ function Wait-OpenCodexLinkOwnedServiceReady {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline -and -not $script:state.ExitRequested) {
         Receive-OpenCodexLinkTrayIpc
-        Update-OpenCodexLinkTrayStatus
+        [void](Update-OpenCodexLinkTrayStatusIfDue)
         if ($script:state.StatusText -eq 'running') { return $true }
         Start-Sleep -Milliseconds 40
     }
@@ -320,7 +332,8 @@ if ($Headless) {
     $exitItem = $menu.Items.Add('退出')
 
     function Refresh-OpenCodexLinkMenu {
-        Update-OpenCodexLinkTrayStatus
+        param([switch]$Force)
+        [void](Update-OpenCodexLinkTrayStatusIfDue -Force:$Force)
         $running = $script:state.StatusText -eq 'running'
         if ($running) { $notify.Text = 'OpenCodex Link - 运行中' } else { $notify.Text = 'OpenCodex Link - 已停止' }
         if ($script:state.StatusText -eq 'error') { $notify.Text = 'OpenCodex Link - 异常' }
@@ -331,8 +344,8 @@ if ($Headless) {
     $openItem.add_Click({ Open-OpenCodexLinkConsole })
     $addItem.add_Click({ Open-OpenCodexLinkConsole -Hash '#add-phone' })
     $connItem.add_Click({ Start-Process ('http://127.0.0.1:{0}/setup/connection' -f $script:state.Port) | Out-Null })
-    $startItem.add_Click({ Start-OpenCodexLinkOwnedService; Refresh-OpenCodexLinkMenu })
-    $stopItem.add_Click({ Stop-OpenCodexLinkOwnedService; Refresh-OpenCodexLinkMenu })
+    $startItem.add_Click({ Start-OpenCodexLinkOwnedService; Refresh-OpenCodexLinkMenu -Force })
+    $stopItem.add_Click({ Stop-OpenCodexLinkOwnedService; Refresh-OpenCodexLinkMenu -Force })
     $autoItem.add_CheckedChanged({
         Set-OpenCodexLinkAutoStart -Enabled $autoItem.Checked -InstallRoot $script:state.InstallRoot -RunKeyPath $script:state.RunKeyPath
         Write-OpenCodexLinkJson -Path (Join-Path $script:state.DataDir 'settings.json') -Object ([pscustomobject]@{
@@ -359,17 +372,21 @@ if ($Headless) {
     $notify.add_DoubleClick({ Open-OpenCodexLinkConsole })
     $notify.ContextMenuStrip = $menu
 
-    $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 50
-    $timer.add_Tick({
+    $ipcTimer = New-Object System.Windows.Forms.Timer
+    $ipcTimer.Interval = 50
+    $ipcTimer.add_Tick({
         Receive-OpenCodexLinkTrayIpc
         if ($script:state.ExitRequested) { [System.Windows.Forms.Application]::Exit() }
-        Refresh-OpenCodexLinkMenu
     })
-    $timer.Start()
-    Refresh-OpenCodexLinkMenu
+    $statusTimer = New-Object System.Windows.Forms.Timer
+    $statusTimer.Interval = Get-OpenCodexLinkHealthRefreshIntervalMs
+    $statusTimer.add_Tick({ Refresh-OpenCodexLinkMenu })
+    $ipcTimer.Start()
+    $statusTimer.Start()
+    Refresh-OpenCodexLinkMenu -Force
     [System.Windows.Forms.Application]::Run()
-    $timer.Stop()
+    $ipcTimer.Stop()
+    $statusTimer.Stop()
     $notify.Visible = $false
     $notify.Dispose()
     if ($bitmap) { $bitmap.Dispose() }

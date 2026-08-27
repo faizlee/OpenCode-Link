@@ -41,6 +41,21 @@ function Assert-OpenCodexLinkTestIsolation {
     }
 }
 
+function Get-OpenCodexLinkHealthRefreshIntervalMs {
+    return 800
+}
+
+function Test-OpenCodexLinkHealthRefreshDue {
+    param(
+        [Parameter(Mandatory = $true)][datetime]$Now,
+        [Parameter(Mandatory = $true)][datetime]$LastAt,
+        [int]$IntervalMs = 0
+    )
+    if ($IntervalMs -le 0) { $IntervalMs = Get-OpenCodexLinkHealthRefreshIntervalMs }
+    if ($LastAt -eq [datetime]::MinValue) { return $true }
+    return (($Now - $LastAt).TotalMilliseconds -ge $IntervalMs)
+}
+
 function Get-OpenCodexLinkNote {
     param($Object, [string]$Name)
     if ($null -eq $Object) { return $null }
@@ -558,6 +573,8 @@ Export-ModuleMember -Function @(
     'Test-OpenCodexLinkSamePath',
     'Test-OpenCodexLinkLiveDataRoot',
     'Assert-OpenCodexLinkTestIsolation',
+    'Get-OpenCodexLinkHealthRefreshIntervalMs',
+    'Test-OpenCodexLinkHealthRefreshDue',
     'Get-OpenCodexLinkNote',
     'Read-OpenCodexLinkJson',
     'Write-OpenCodexLinkJson',

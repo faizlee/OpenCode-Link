@@ -196,6 +196,18 @@ try {
         $status = Send-OpenCodexLinkTrayCommand -PipeName $pipeName -Command @{ cmd = 'status' } -TimeoutMs 8000
         Assert-True ($status.status -eq 'running') 'headless tray status is running after startup'
 
+        $pingTimes = @()
+        foreach ($n in 1..5) {
+            $clock = [Diagnostics.Stopwatch]::StartNew()
+            $quickPing = Send-OpenCodexLinkTrayCommand -PipeName $pipeName -Command @{ cmd = 'ping' } -TimeoutMs 4000
+            $clock.Stop()
+            $pingTimes += $clock.ElapsedMilliseconds
+            Assert-True ($quickPing.ok -eq $true) ('low-latency ping #' + $n + ' returns ok')
+            Assert-True ($clock.ElapsedMilliseconds -lt 1000) ('low-latency ping #' + $n + ' stays under 1000ms, got ' + $clock.ElapsedMilliseconds)
+        }
+        $maxPing = ($pingTimes | Measure-Object -Maximum).Maximum
+        Assert-True ($maxPing -lt 1000) ('headless tray ping stays low-latency after health throttle, maxMs=' + $maxPing)
+
         $opened = Send-OpenCodexLinkTrayCommand -PipeName $pipeName -Command @{ cmd = 'open' } -TimeoutMs 15000
         Assert-True ($opened.ok -eq $true -and $opened.status -eq 'running') 'headless tray open command starts or keeps the service without requiring a browser'
 
