@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1",
+  "receiptType": "feature_lifecycle_validation_receipt",
+  "featureId": "DESKTOP-TRAY-WEB-CONSOLE-001",
+  "stage": "decision_converged",
+  "manifestDigest": "eb0aef8a1123cd0be48d949f5dde54dd56e4f72a3f285b52fd14122d6c740577",
+  "allowed": true,
+  "blockers": [],
+  "allowedNextAction": "prepare_end_to_end_tray_and_web_console_implementation_contract",
+  "stopLine": "Do not modify runtime code, page styles, launch configuration, package contents, or running processes without separate implementation authorization.",
+  "decisionAuthorityStatus": "user_confirmed",
+  "evidenceRefs": [
+    "docs/product-decisions.json#DESKTOP-TRAY-WEB-CONSOLE-001",
+    "docs/desktop-console-design.md",
+    "README.md",
+    "docs/product-decisions.json",
+    "scripts/launch.ps1",
+    "scripts/stop.ps1",
+    "src/App.tsx",
+    "src/styles.css",
+    "server/index.ts",
+    "scripts/package-windows.ps1",
+    "package.json",
+    "Current product authority records the tray-owned service lifecycle, browser-hosted management console, unchanged phone PWA, five-section information architecture, and implementation-not-started boundary.",
+    "Structured user-confirmed decision DESKTOP-TRAY-WEB-CONSOLE-001 records responsibilities, interface scope, Redline authority, safety rules, and deferred native or automatic-update scope.",
+    "The current command and script launch/stop flow is classified as implemented current behavior and a transitional predecessor, not as completion of the confirmed tray design.",
+    "Affected web, server lifecycle, launcher, packaging, version handshake, device-management, and visual surfaces are identified; no runtime implementation is claimed or authorized at this stage.",
+    "The reference is the approved time-ai-arms-race-2023@0.1.0 visual contract. OpenCodex Link reuses visual language and tokens only; article semantics, third-party branding, and the generic 58-entry catalog are excluded.",
+    "All current project JSON documents parsed successfully after propagation.",
+    "The scoped decision and design propagation contains no whitespace errors."
+  ],
+  "invalidationConditions": [
+    "manifest_digest_changed",
+    "decision_authority_changed",
+    "required_consumer_changed",
+    "check_or_residual_scan_changed"
+  ]
+}

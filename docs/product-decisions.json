@@ -78,6 +78,43 @@
         "Codex队列未来提供原生通用文件参数后切换到结构化文件输入",
         "超大文件和文件夹上传"
       ]
+    },
+    {
+      "id": "DESKTOP-TRAY-WEB-CONSOLE-001",
+      "title": "Windows轻量托盘负责服务，浏览器承载Redline管理台",
+      "status": "user_confirmed",
+      "confirmedAt": "2026-08-27",
+      "references": [
+        {
+          "kind": "visual_style_contract",
+          "id": "time-ai-arms-race-2023@0.1.0",
+          "path": "E:/work/project/faizleecom/docs/features/ai-editorial/design/visual-style-systems/time-ai-arms-race-2023/design.md"
+        },
+        {
+          "kind": "visual_tokens",
+          "id": "redline-tokens@0.1.0",
+          "path": "E:/work/project/faizleecom/docs/features/ai-editorial/design/visual-style-systems/time-ai-arms-race-2023/tokens.css"
+        }
+      ],
+      "rules": [
+        "Windows端增加轻量托盘控制器，不重新开发完整原生桌面界面",
+        "托盘是后台服务生命周期Owner，负责启动、停止、重启、运行状态、版本、退出和新版替换旧版",
+        "托盘点击打开OpenCodex Link时使用默认浏览器进入本机管理台，设置、扫码、设备和连接管理继续由网页承载",
+        "手机端继续使用现有网页/PWA任务界面，电脑管理台与手机任务界面保持独立入口和职责",
+        "新版只可关闭能够证明属于OpenCodex Link的旧服务；端口被其他软件占用时必须明确报错，不得误杀进程",
+        "电脑管理台包含概览、设备、连接、设置和关于五个一级区域",
+        "添加手机二维码按需打开并显示有效期，技术地址与备用IP默认收进折叠详情",
+        "设备管理支持清晰设备名、当前设备、最近使用、首次添加、改名、单独解除、批量清理和长期未使用设备折叠，不得自动猜测合并不同设备",
+        "网页视觉采用faizleecom的Redline Technical Analysis正式合同time-ai-arms-race-2023@0.1.0作为风格来源",
+        "Redline迁移只复用暖白纸面、黑色正文、克制信号红、衬线标题、无衬线操作文字、细边框、无阴影和留白节奏；不得照搬文章语义组件或连续长文布局",
+        "管理台使用扁平分区与行式信息组织，不采用蓝紫霓虹、玻璃拟态、发光AI装饰、卡片矩阵或第三方TIME品牌与资产",
+        "服务状态、错误、警告和破坏性操作必须有文字或图标说明，不能只依赖Redline红色区分"
+      ],
+      "deferred": [
+        "自动联网下载并安装新版本",
+        "使用WebView2把管理台嵌入原生窗口",
+        "完整原生桌面管理界面"
+      ]
     }
   ]
 }

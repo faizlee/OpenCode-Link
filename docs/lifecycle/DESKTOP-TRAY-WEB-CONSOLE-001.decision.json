@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1",
+  "featureId": "DESKTOP-TRAY-WEB-CONSOLE-001",
+  "stage": "decision_converged",
+  "decisionAuthority": {
+    "status": "user_confirmed",
+    "evidence": [
+      "docs/product-decisions.json#DESKTOP-TRAY-WEB-CONSOLE-001",
+      "docs/desktop-console-design.md"
+    ]
+  },
+  "consumers": [
+    {
+      "class": "product_authority",
+      "status": "synced",
+      "paths": ["README.md", "docs/desktop-console-design.md"],
+      "evidence": "Current product authority records the tray-owned service lifecycle, browser-hosted management console, unchanged phone PWA, five-section information architecture, and implementation-not-started boundary."
+    },
+    {
+      "class": "decision_ledger",
+      "status": "synced",
+      "paths": ["docs/product-decisions.json"],
+      "evidence": "Structured user-confirmed decision DESKTOP-TRAY-WEB-CONSOLE-001 records responsibilities, interface scope, Redline authority, safety rules, and deferred native or automatic-update scope."
+    },
+    {
+      "class": "conflict_audit",
+      "status": "synced",
+      "paths": ["README.md", "scripts/launch.ps1", "scripts/stop.ps1", "docs/desktop-console-design.md"],
+      "evidence": "The current command and script launch/stop flow is classified as implemented current behavior and a transitional predecessor, not as completion of the confirmed tray design."
+    },
+    {
+      "class": "downstream_impact",
+      "status": "synced",
+      "paths": ["src/App.tsx", "src/styles.css", "server/index.ts", "scripts/launch.ps1", "scripts/stop.ps1", "scripts/package-windows.ps1", "package.json", "docs/desktop-console-design.md"],
+      "evidence": "Affected web, server lifecycle, launcher, packaging, version handshake, device-management, and visual surfaces are identified; no runtime implementation is claimed or authorized at this stage."
+    }
+  ],
+  "checks": [
+    {
+      "name": "Redline source-contract audit",
+      "status": "passed",
+      "command": "read faizleecom knowledge index, SOP-048, design.md, tokens.css, status.json, approved-visual-baseline.json, and replication-audit.md",
+      "evidence": "The reference is the approved time-ai-arms-race-2023@0.1.0 visual contract. OpenCodex Link reuses visual language and tokens only; article semantics, third-party branding, and the generic 58-entry catalog are excluded."
+    },
+    {
+      "name": "Structured decision parse",
+      "status": "passed",
+      "command": "PowerShell ConvertFrom-Json over docs JSON files",
+      "evidence": "All current project JSON documents parsed successfully after propagation."
+    },
+    {
+      "name": "Documentation diff check",
+      "status": "passed",
+      "command": "git diff --check",
+      "evidence": "The scoped decision and design propagation contains no whitespace errors."
+    }
+  ],
+  "residualScan": {
+    "required": true,
+    "status": "passed",
+    "scope": ["README.md", "docs", "src", "server", "scripts", "package.json"],
+    "patterns": [
+      "命令行启动是最终电脑端形态",
+      "网页负责停止和替换自身服务",
+      "完整原生桌面界面",
+      "Redline文章组件直接复用",
+      "按端口强制结束未知进程"
+    ],
+    "unresolved": []
+  },
+  "gate": {
+    "allowed": true,
+    "blockers": [],
+    "allowedNextAction": "prepare_end_to_end_tray_and_web_console_implementation_contract",
+    "stopLine": "Do not modify runtime code, page styles, launch configuration, package contents, or running processes without separate implementation authorization."
+  }
+}
