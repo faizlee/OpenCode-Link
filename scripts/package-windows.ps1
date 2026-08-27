@@ -4,16 +4,18 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 Import-Module -Force -Global (Join-Path $PSScriptRoot 'OpenCodexLink.Identity.psm1')
 
 $releaseRoot = Join-Path $projectRoot 'release'
-$packageRoot = Join-Path $releaseRoot 'OpenCodexLink'
+$overlayRoot = Join-Path $releaseRoot 'OpenCodexLink'
+$stageRoot = Join-Path $releaseRoot 'stage'
+$packageRoot = Join-Path $stageRoot 'OpenCodexLink'
 $zipPath = Join-Path $releaseRoot 'OpenCodexLink-Windows.zip'
 
 $resolvedProject = [IO.Path]::GetFullPath($projectRoot)
-$resolvedPackage = [IO.Path]::GetFullPath($packageRoot)
-if (-not $resolvedPackage.StartsWith($resolvedProject + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+$resolvedStage = [IO.Path]::GetFullPath($stageRoot)
+if (-not $resolvedStage.StartsWith($resolvedProject + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Refusing to clean a package path outside the project.'
 }
 
-$environmentPath = Join-Path $packageRoot '.env'
+$environmentPath = Join-Path $overlayRoot '.env'
 $environmentContent = $null
 if (Test-Path -LiteralPath $environmentPath) {
     $environmentContent = Get-Content -LiteralPath $environmentPath -Raw
@@ -23,7 +25,7 @@ Set-Location -LiteralPath $projectRoot
 npm.cmd run build
 node.exe (Join-Path $PSScriptRoot 'generate-icons.mjs')
 
-if (Test-Path -LiteralPath $packageRoot) { Remove-Item -LiteralPath $packageRoot -Recurse -Force }
+if (Test-Path -LiteralPath $stageRoot) { Remove-Item -LiteralPath $stageRoot -Recurse -Force }
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 
 $scriptsDest = Join-Path $packageRoot 'scripts'
@@ -68,15 +70,15 @@ try { npm.cmd ci --omit=dev --ignore-scripts } finally { Pop-Location }
 try {
     Test-OpenCodexLinkPortablePackageRoot -PackageRoot $packageRoot
 
-    & tar.exe -a -c -f $zipPath -C $releaseRoot 'OpenCodexLink'
+    & tar.exe -a -c -f $zipPath -C $stageRoot 'OpenCodexLink'
     if ($LASTEXITCODE -ne 0) { throw "Archive creation failed with exit code $LASTEXITCODE" }
 
     Test-OpenCodexLinkPortableZip -ZipPath $zipPath
     Write-Host "Created: $zipPath"
 } finally {
     if ($null -ne $environmentContent) {
-        if (-not (Test-Path -LiteralPath $packageRoot)) {
-            New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
+        if (-not (Test-Path -LiteralPath $overlayRoot)) {
+            New-Item -ItemType Directory -Force -Path $overlayRoot | Out-Null
         }
         Set-Content -LiteralPath $environmentPath -Value $environmentContent -NoNewline -Encoding ascii
     }

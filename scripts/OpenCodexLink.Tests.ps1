@@ -100,6 +100,36 @@ Assert-True ($ipcTick.Groups[1].Value -match 'Receive-OpenCodexLinkTrayIpc') 'IP
 Assert-True ($ipcTick.Groups[1].Value -notmatch 'Refresh-OpenCodexLinkMenu') 'IPC tick does not refresh the menu'
 Assert-True ($ipcTick.Groups[1].Value -notmatch 'Update-OpenCodexLinkTrayStatus') 'IPC tick does not poll /api/health'
 
+$autoKey = 'HKCU:\Software\OpenCodexLink\AutoStartTest\' + [guid]::NewGuid().ToString('N')
+try {
+    New-Item -Path $autoKey -Force | Out-Null
+    $missingThrew = $false
+    $missingResult = $true
+    try {
+        $missingResult = Get-OpenCodexLinkAutoStart -RunKeyPath $autoKey
+    } catch {
+        $missingThrew = $true
+        $missingResult = $true
+    }
+    Assert-True (-not $missingThrew) 'Get-OpenCodexLinkAutoStart does not throw when the Run key exists without OpenCodexLink'
+    Assert-True ($missingResult -eq $false) 'Get-OpenCodexLinkAutoStart returns false when OpenCodexLink is absent'
+
+    Set-OpenCodexLinkAutoStart -Enabled $true -InstallRoot 'C:\apps\OpenCodexLink' -RunKeyPath $autoKey
+    $presentThrew = $false
+    $presentResult = $false
+    try {
+        $presentResult = Get-OpenCodexLinkAutoStart -RunKeyPath $autoKey
+    } catch {
+        $presentThrew = $true
+    }
+    Assert-True (-not $presentThrew) 'Get-OpenCodexLinkAutoStart does not throw when OpenCodexLink exists'
+    Assert-True ($presentResult -eq $true) 'Get-OpenCodexLinkAutoStart returns true when OpenCodexLink exists'
+} finally {
+    if (Test-Path -LiteralPath $autoKey) {
+        Remove-Item -LiteralPath $autoKey -Recurse -Force
+    }
+}
+
 $tempRoot = Join-Path $env:TEMP ('ocl-tray-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 $listener = $null

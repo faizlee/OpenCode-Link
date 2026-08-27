@@ -398,7 +398,8 @@ function Get-OpenCodexLinkAutoStartCommand {
 function Get-OpenCodexLinkAutoStart {
     param([string]$RunKeyPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run')
     if (-not (Test-Path -LiteralPath $RunKeyPath)) { return $false }
-    $value = (Get-ItemProperty -LiteralPath $RunKeyPath -ErrorAction SilentlyContinue).OpenCodexLink
+    $item = Get-ItemProperty -LiteralPath $RunKeyPath
+    $value = Get-OpenCodexLinkNote $item 'OpenCodexLink'
     return -not [string]::IsNullOrWhiteSpace([string]$value)
 }
 
