@@ -66,6 +66,7 @@ export function createBridgeApp(services: BridgeAppServices): Express {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("X-Frame-Options", "DENY");
+    response.setHeader("Accept-CH", "Sec-CH-UA-Model");
     next();
   });
 
@@ -232,7 +233,7 @@ export function createBridgeApp(services: BridgeAppServices): Express {
       return;
     }
     if (!sessions.refresh(request, response, request.secure)
-      && !(ticket.sessionToken && sessions.adopt(ticket.sessionToken, response, request.secure))) {
+      && !(ticket.sessionToken && sessions.adopt(ticket.sessionToken, response, request.secure, request.headers))) {
       sessions.create(request, response, request.secure);
     }
     response.redirect(303, "/");

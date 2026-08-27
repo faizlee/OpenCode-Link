@@ -69,7 +69,7 @@
       "class": "verification_contract",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1", "scripts/OpenCodexLink.TrayIpc.Tests.ps1"],
-      "evidence": "Automated identity, repeated-scan identity reuse with a top-level QR navigation cookie, device editing, BOM-free shared JSON, routing, style-scope, build, package-manifest, isolated package-smoke, and Headless tray IPC checks are recorded. Live two-directory replacement, browser five-area navigation, QR, 390px, mobile password entry, background-service, tray readback, same-version wake, password, and device-hash retention checks passed. User-visible NotifyIcon/menu, real-phone rescan, unknown-occupant manual comparison, and target-machine acceptance remain for the human controller."
+      "evidence": "Automated identity, repeated-scan identity reuse with a top-level QR navigation cookie, model-first default device naming with truthful fallback and user-rename preservation, device editing, BOM-free shared JSON, routing, style-scope, build, package-manifest, isolated package-smoke, and Headless tray IPC checks are recorded. Live two-directory replacement, browser five-area navigation, QR, 390px, mobile password entry, background-service, tray readback, same-version wake, password, and device-hash retention checks passed. User-visible NotifyIcon/menu, real-phone model/rescan, unknown-occupant manual comparison, and target-machine acceptance remain for the human controller."
     },
     {
       "class": "roadmap",
@@ -95,7 +95,7 @@
       "name": "npm test",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Vitest: 16 files, 43 tests passed, including a full HTTP pairing flow proving a second scan with the existing phone cookie preserves the original device ID and row count."
+      "evidence": "Vitest: 16 files, 45 tests passed, including phone-model extraction and upgrade behavior plus a full HTTP pairing flow proving a second scan with the existing phone cookie preserves the original device ID and row count."
     },
     {
       "name": "npm run build",
@@ -125,7 +125,7 @@
       "name": "Live local tray and browser acceptance",
       "status": "passed",
       "command": "launch packaged candidate; inspect /api/runtime and /api/session; navigate /setup in the in-app browser at default and 390px; close the test tab; relaunch the same version; compare trusted-devices.json SHA-256",
-      "evidence": "Final package runs from release/deployed-final-20260828-034048/OpenCodexLink with tray PID 57632 and service PID 11448. /api/runtime reports tray 0.1.0, tray.json is UTF-8 without BOM, password is required, unauthenticated mobile root shows a password field, five console areas and one on-demand QR render without console errors, 390px has no horizontal overflow, closing the test tab leaves the service alive, same-version launch preserves both PIDs, and trusted-devices.json remains SHA-256 DFBD378EEC025074C64E1F62F6A946A9D798315F3CB0E630F5057CF017C6ACDF."
+      "evidence": "Current package runs from release/deployed-model-final-20260828-040049/OpenCodexLink with tray PID 64228 and service PID 31156. /api/runtime reports tray 0.1.0, tray.json is UTF-8 without BOM, password is required, Accept-CH requests Sec-CH-UA-Model, unauthenticated mobile root shows a password field, five console areas and one on-demand QR render without console errors, 390px has no horizontal overflow, closing the test tab leaves the service alive, same-version launch preserves both PIDs, packaged model-name readback returns SM-S9280/23127PN0CC/iPhone for the three verified cases, and trusted-devices.json remains SHA-256 DFBD378EEC025074C64E1F62F6A946A9D798315F3CB0E630F5057CF017C6ACDF."
     },
     {
       "name": "git diff --check",
@@ -163,7 +163,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_user_visible_notifyicon_real_phone_rescan_unknown_occupant_and_target_machine_acceptance_then_evaluate_delivery_integrated",
-    "stopLine": "Stop on unprovable process identity, device-credential schema drift, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before user-visible NotifyIcon/menu, real-phone rescan, unknown-occupant manual comparison, and target-machine acceptance."
+    "allowedNextAction": "complete_user_visible_notifyicon_real_phone_model_rescan_unknown_occupant_and_target_machine_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Stop on unprovable process identity, guessed phone model, model-based credential merging, user-rename overwrite, device-credential schema drift, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before user-visible NotifyIcon/menu, real-phone model/rescan, unknown-occupant manual comparison, and target-machine acceptance."
   }
 }

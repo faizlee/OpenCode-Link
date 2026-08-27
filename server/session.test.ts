@@ -28,9 +28,13 @@ function responseRecorder() {
   return { response, headers };
 }
 
-function requestWithCookie(cookie = "", userAgent = "Android Test") {
+function requestWithCookie(cookie = "", userAgent = "Android Test", clientHintModel = "") {
   return {
-    headers: { cookie, "user-agent": userAgent },
+    headers: {
+      cookie,
+      "user-agent": userAgent,
+      ...(clientHintModel ? { "sec-ch-ua-model": `"${clientHintModel}"` } : {}),
+    },
     socket: { remoteAddress: "192.168.1.20" },
   } as unknown as IncomingMessage;
 }
@@ -86,6 +90,33 @@ describe("SessionStore", () => {
     expect(store.refresh(requestWithCookie(cookie), responseRecorder().response, false)).toBe(true);
     expect(store.listDevices()).toHaveLength(1);
     expect(store.adopt("v2.invalid.secret", responseRecorder().response, false)).toBe(false);
+  });
+
+  it("uses the phone model as the default device name when the browser exposes it", () => {
+    const androidUa = "Mozilla/5.0 (Linux; Android 14; SM-S9280 Build/UP1A.231005.007) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36";
+    const store = new SessionStore("test-password", devicePath());
+
+    store.create(requestWithCookie("", androidUa), responseRecorder().response, false);
+    store.create(requestWithCookie("", "Mozilla/5.0 (Linux; Android 10; K)", "23127PN0CC"), responseRecorder().response, false);
+    store.create(requestWithCookie("", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"), responseRecorder().response, false);
+
+    expect(store.listDevices().map((device) => device.name).sort()).toEqual(["23127PN0CC", "SM-S9280", "iPhone"].sort());
+  });
+
+  it("upgrades a generic Android name on the next visit but preserves a user rename", () => {
+    const store = new SessionStore("test-password", devicePath());
+    const created = responseRecorder();
+    store.create(requestWithCookie(), created.response, false);
+    const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+    const androidUa = "Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro Build/AP4A.250105.002) AppleWebKit/537.36 Chrome/132 Mobile Safari/537.36";
+
+    expect(store.refresh(requestWithCookie(cookie, androidUa), responseRecorder().response, false)).toBe(true);
+    expect(store.listDevices()[0].name).toBe("Pixel 9 Pro");
+
+    const id = store.listDevices()[0].id;
+    expect(store.rename(id, "我的工作手机")).toBe(true);
+    expect(store.refresh(requestWithCookie(cookie, androidUa, "Pixel 10 Pro"), responseRecorder().response, false)).toBe(true);
+    expect(store.listDevices()[0].name).toBe("我的工作手机");
   });
 
   it("revokes one trusted device without affecting another", () => {

@@ -69,15 +69,19 @@ describe("bridge HTTP console APIs", () => {
       const firstTicket = pairing.issue();
       const firstScan = await fetch(`${listener.origin}/pair/${firstTicket.token}`, {
         redirect: "manual",
-        headers: { "User-Agent": "Android Test" },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Linux; Android 14; SM-S9280 Build/UP1A.231005.007) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36",
+        },
       });
       const setCookie = firstScan.headers.get("set-cookie") ?? "";
       const cookie = setCookie.split(";", 1)[0];
       const [firstDevice] = sessions.listDevices();
 
       expect(firstScan.status).toBe(303);
+      expect(firstScan.headers.get("accept-ch")).toBe("Sec-CH-UA-Model");
       expect(setCookie).toContain("SameSite=Lax");
       expect(sessions.listDevices()).toHaveLength(1);
+      expect(firstDevice.name).toBe("SM-S9280");
 
       const secondTicket = pairing.issue();
       const secondScan = await fetch(`${listener.origin}/pair/${secondTicket.token}`, {

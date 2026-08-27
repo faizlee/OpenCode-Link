@@ -14,14 +14,14 @@
 ## 当前交付基线
 
 - 实现提交：`3c97bac`（完整移动端交付）与 `0ffa34c`（重复扫码及固定名称迁移复用设备身份）。
-- 自动验证：`npm run typecheck`、`npm test`、`npm run build` 通过；当前为 16 个测试文件、42 项测试，另有 PowerShell 5.1 身份/语法、隔离 Headless 托盘 IPC，以及便携包清单与隔离冒烟。
+- 自动验证：`npm run typecheck`、`npm test`、`npm run build` 通过；当前为 16 个测试文件、45 项测试，包含手机型号默认命名、泛化名称升级、用户改名保护和重复扫码身份复用，另有 PowerShell 5.1 身份/语法、隔离 Headless 托盘 IPC，以及便携包清单与隔离冒烟。
 - 本机宿主验证：设置页、任务列表、历史同步、移动端布局、桌面入口说明、可信设备重启恢复与解除、重复扫码不新增设备、固定名称迁移不新增设备、固定名称 80→8787 转发通过。
 - 历史正文保护：手机页面不再显示启动时注入的插件清单、AGENTS 指令和环境上下文，只显示真实用户消息。
 - 启动配置：重复运行启动脚本后，四项 `CODEX_PWA_*` 受管配置各保留一份，现有密码不被替换。
 
 ## 已确认的下一阶段方向
 
-- `DESKTOP-TRAY-WEB-CONSOLE-001` 仍保持 `contract_ready`：源码、托盘 Owner、五区 Redline 管理台和便携包已是实现候选，但真实 NotifyIcon、跨目录换版、目标机便携包和手机回归尚未人工验收。
+- `DESKTOP-TRAY-WEB-CONSOLE-001` 仍保持 `contract_ready`：源码、托盘 Owner、五区 Redline 管理台和便携包已是实现候选，本机跨目录换版、浏览器与设备数据保留已验证；用户可见 NotifyIcon 菜单、真实手机型号/重复扫码、未知占用人工对照和目标机便携包仍待验收。
 - 管理台使用 faizleecom `time-ai-arms-race-2023@0.1.0` 的 Redline 视觉合同做界面化适配，不把文章组件或第三方品牌资产直接复制进软件。
 - 下一步只允许主控完成合同中的本机真实验收；在此之前不把状态提升为 `delivery_integrated`，也不做 force、PR 或 release。
 

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 
 const COOKIE_NAME = "codex_pwa_session";
@@ -59,10 +59,42 @@ function defaultDevicePath() {
   return join(root, "trusted-devices.json");
 }
 
-function deviceName(userAgent = "") {
+const GENERIC_DEVICE_NAMES = new Set(["iPad", "iPhone", "Android 手机", "Windows 浏览器", "Mac 浏览器", "已配对设备"]);
+
+function headerText(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function cleanDeviceModel(value: string) {
+  const cleaned = value
+    .trim()
+    .replace(/^"+|"+$/g, "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim();
+  if (!cleaned || cleaned.length > 80) return "";
+  if (/^(?:K|Unknown|Android|Not[ _-]?A[ _-]?Brand)$/i.test(cleaned)) return "";
+  return cleaned;
+}
+
+function androidModelFromUserAgent(userAgent: string) {
+  for (const match of userAgent.matchAll(/\(([^)]*Android[^)]*)\)/gi)) {
+    const segments = match[1].split(";").map((segment) => segment.trim()).filter(Boolean);
+    const buildSegment = segments.find((segment) => /\bBuild\//i.test(segment));
+    if (buildSegment) {
+      const model = cleanDeviceModel(buildSegment.replace(/\s+Build\/.*$/i, ""));
+      if (model) return model;
+    }
+  }
+  return "";
+}
+
+export function defaultDeviceName(headers: IncomingHttpHeaders = {}) {
+  const userAgent = headerText(headers["user-agent"]);
+  const hintedModel = cleanDeviceModel(headerText(headers["sec-ch-ua-model"]));
+  if (hintedModel) return hintedModel;
+  if (/Android/i.test(userAgent)) return androidModelFromUserAgent(userAgent) || "Android 手机";
   if (/iPad/i.test(userAgent)) return "iPad";
   if (/iPhone/i.test(userAgent)) return "iPhone";
-  if (/Android/i.test(userAgent)) return "Android 手机";
   if (/Windows/i.test(userAgent)) return "Windows 浏览器";
   if (/Macintosh|Mac OS/i.test(userAgent)) return "Mac 浏览器";
   return "已配对设备";
@@ -112,7 +144,7 @@ export class SessionStore {
     this.devices.push({
       id,
       tokenHash: tokenHash(secret),
-      name: name ?? deviceName(request.headers["user-agent"]),
+      name: name ?? defaultDeviceName(request.headers),
       createdAt: now,
       lastSeenAt: now,
       remoteAddress: request.socket?.remoteAddress ?? "",
@@ -125,7 +157,7 @@ export class SessionStore {
   refresh(request: IncomingMessage, response: ServerResponse, secure: boolean) {
     const token = this.validToken(request);
     if (!token) return false;
-    this.refreshToken(token, response, secure);
+    this.refreshToken(token, response, secure, request.headers);
     return true;
   }
 
@@ -133,10 +165,10 @@ export class SessionStore {
     return this.validToken(request)?.raw ?? null;
   }
 
-  adopt(raw: string, response: ServerResponse, secure: boolean) {
+  adopt(raw: string, response: ServerResponse, secure: boolean, headers?: IncomingHttpHeaders) {
     const token = this.validRawToken(raw);
     if (!token) return false;
-    this.refreshToken(token, response, secure);
+    this.refreshToken(token, response, secure, headers);
     return true;
   }
 
@@ -204,7 +236,16 @@ export class SessionStore {
     return { raw, device };
   }
 
-  private refreshToken(token: { raw: string; device: StoredDevice }, response: ServerResponse, secure: boolean) {
+  private refreshToken(
+    token: { raw: string; device: StoredDevice },
+    response: ServerResponse,
+    secure: boolean,
+    headers?: IncomingHttpHeaders,
+  ) {
+    if (headers && GENERIC_DEVICE_NAMES.has(token.device.name)) {
+      const detectedName = defaultDeviceName(headers);
+      if (!GENERIC_DEVICE_NAMES.has(detectedName)) token.device.name = detectedName;
+    }
     token.device.lastSeenAt = Date.now();
     this.save();
     this.setCookie(response, token.raw, secure);

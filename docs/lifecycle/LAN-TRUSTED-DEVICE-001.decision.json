@@ -13,25 +13,25 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines first-scan pairing, durable trusted-device behavior, repeated-scan identity reuse, stable-origin migration, direct reopen, and revocation."
+      "evidence": "README defines first-scan pairing, durable trusted-device behavior, repeated-scan identity reuse, stable-origin migration, direct reopen, revocation, and model-first default device names with truthful fallback."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records confirmed and deferred scope."
+      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records confirmed and deferred scope, including the 2026-08-28 decision to use a reliably exposed phone model as the default name without guessing or identity merging."
     },
     {
       "class": "conflict_audit",
       "status": "synced",
-      "paths": ["server/session.ts", "server/pairing.ts", "server/index.ts", "README.md"],
-      "evidence": "The fixed 30-day server expiry remains removed, QR tickets are one-time, and an already trusted browser refreshes or adopts its existing identity instead of creating a duplicate device."
+      "paths": ["server/session.ts", "server/pairing.ts", "server/http-app.ts", "README.md", "docs/desktop-console-design.md"],
+      "evidence": "The fixed 30-day server expiry remains removed, QR tickets are one-time, an already trusted browser refreshes or adopts its existing identity instead of creating a duplicate, phone model is display-only, generic names upgrade only on the same credential, and user renames are preserved."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
-      "paths": ["server/session.ts", "server/index.ts", "server/session.test.ts", "src/App.tsx", "src/styles.css"],
-      "evidence": "Implementation commits 3c97bac and 0ffa34c contain the persistent device registry, rolling browser session, local device-management API/UI, revocation, repeated-scan reuse, origin-migration adoption, and tests."
+      "paths": ["server/session.ts", "server/http-app.ts", "server/session.test.ts", "server/http-app.test.ts", "src/console/ConsoleApp.tsx", "docs/desktop-console-implementation-contract.md"],
+      "evidence": "The current branch candidate contains the persistent device registry, rolling browser session, model-first default naming, generic-name upgrade without overwriting user renames, local device management, revocation, repeated-scan reuse, origin-migration adoption, and tests."
     }
   ],
   "checks": [
@@ -39,13 +39,13 @@
       "name": "TypeScript typecheck",
       "status": "passed",
       "command": "npm run typecheck",
-      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 0ffa34c."
+      "evidence": "Server and client typechecks passed on 2026-08-28 with model-first default naming and generic-name upgrade enabled."
     },
     {
       "name": "Unit tests",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Twelve test files and thirty-three tests passed, including persistent trusted-device, revocation, repeated-scan reuse, one-time pairing tickets, and cross-origin identity adoption."
+      "evidence": "Sixteen test files and forty-five tests passed, including Android User-Agent model extraction, Sec-CH-UA-Model preference, truthful iPhone fallback, generic-name upgrade, user-rename preservation, persistent trusted-device, revocation, repeated-scan reuse, one-time pairing tickets, and cross-origin identity adoption."
     },
     {
       "name": "Production trusted-device restart probe",
@@ -58,19 +58,25 @@
       "status": "passed",
       "command": "pair -> rescan same QR -> adopt stable-link ticket in fresh origin session -> authenticate -> revoke",
       "evidence": "The trusted-device count moved from 10 to 11 on first pairing, stayed 11 after rescanning the same QR, stayed 11 after a fresh-origin session adopted the stable-link identity, authenticated successfully, and returned to 10 after removing the temporary device on 2026-08-27."
+    },
+    {
+      "name": "Packaged phone-model naming readback",
+      "status": "passed",
+      "command": "bundled node --input-type=module -e import defaultDeviceName from dist-server/session.js",
+      "evidence": "The deployed portable package returned SM-S9280 from an Android Build User-Agent, 23127PN0CC from Sec-CH-UA-Model when the reduced User-Agent exposed only K, and the truthful fallback iPhone when no exact Apple model was available. Live trusted-device count stayed 2 and its file hash was unchanged."
     }
   ],
   "residualScan": {
     "required": true,
     "status": "passed",
     "scope": ["README.md", "server", "src", "docs"],
-    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码", "重复扫码新增设备", "固定名称迁移新增设备"],
+    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码", "重复扫码新增设备", "固定名称迁移新增设备", "Android手机作为唯一默认名", "按型号合并设备", "自动覆盖用户改名"],
     "unresolved": []
   },
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_real_phone_reopen_acceptance_then_evaluate_delivery_integrated",
-    "stopLine": "Do not expand into external network channels, HTTPS hosting, or firewall changes, and do not substitute the local production probe for target-phone acceptance."
+    "allowedNextAction": "complete_real_phone_model_name_rescan_and_reopen_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not guess an unavailable iPhone or Android model, merge credentials by model, overwrite a user rename, expand into external network channels, HTTPS hosting, or firewall changes, and do not substitute automated extraction tests for target-phone acceptance."
   }
 }
