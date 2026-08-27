@@ -45,7 +45,7 @@
       "class": "runtime_capability_map",
       "status": "synced",
       "paths": ["scripts/tray.ps1", "scripts/OpenCodexLink.Identity.psm1", "scripts/OpenCodexLink.Service.psm1", "server/runtime.ts", "server/http-app.ts", "src/console/ConsoleApp.tsx"],
-      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, and portable-package identity are present in source; human NotifyIcon visibility is not claimed."
+      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, portable-package identity, and a main-thread tray IPC command queue are present in source; human NotifyIcon visibility is not claimed."
     },
     {
       "class": "dependency_closure",
@@ -68,8 +68,8 @@
     {
       "class": "verification_contract",
       "status": "synced",
-      "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1"],
-      "evidence": "Automated identity, device, routing, style-scope, build, package-manifest, and isolated package-smoke checks are recorded. Real tray, two-directory replacement, unknown-port, browser, responsive, phone-regression, and data-retention acceptance remain for the human controller."
+      "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1", "scripts/OpenCodexLink.TrayIpc.Tests.ps1"],
+      "evidence": "Automated identity, device, routing, style-scope, build, package-manifest, isolated package-smoke, and Headless tray IPC checks are recorded. Real NotifyIcon visibility, two-directory replacement with device retention, unknown-port, browser, responsive, phone-regression, and data-retention acceptance remain for the human controller."
     },
     {
       "class": "roadmap",
@@ -107,7 +107,7 @@
       "name": "PowerShell 5.1 tray identity and syntax tests",
       "status": "passed",
       "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/OpenCodexLink.Tests.ps1",
-      "evidence": "Syntax, package-plan, zip-entry classification, isolation, Current/Predecessor/StalePid/Unknown, and fail-closed unknown-occupant checks passed without starting a real NotifyIcon."
+      "evidence": "Syntax, package-plan, zip-entry classification, isolation, Current/Predecessor/StalePid/Unknown, fail-closed unknown-occupant, and isolated Headless tray IPC (ping/status/open/stop/start, same-version wake, shutdown-for-replace mutex release) passed without creating a NotifyIcon or touching live LOCALAPPDATA/8787."
     },
     {
       "name": "Windows portable package",

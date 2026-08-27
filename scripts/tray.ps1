@@ -109,6 +109,7 @@ $script:state = [hashtable]::Synchronized(@{
     LastError = ''
     StatusText = 'stopped'
 })
+$script:ipcQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[object]'
 
 function Get-OpenCodexLinkConsoleUrl {
     param([string]$Hash = '')
@@ -142,6 +143,7 @@ function Open-OpenCodexLinkConsole {
     if ($script:state.StatusText -ne 'running') {
         Start-OpenCodexLinkOwnedService
     }
+    if ($env:CODEX_PWA_TEST_ISOLATION -eq '1') { return }
     Start-Process (Get-OpenCodexLinkConsoleUrl -Hash $Hash) | Out-Null
 }
 
@@ -181,6 +183,31 @@ function Invoke-OpenCodexLinkTrayCommand {
     }
 }
 
+function Receive-OpenCodexLinkTrayIpc {
+    $item = $null
+    while ($script:ipcQueue.TryDequeue([ref]$item)) {
+        try {
+            $item.Response = Invoke-OpenCodexLinkTrayCommand -Command $item.Command
+        } catch {
+            $item.Response = @{ ok = $false; error = $_.Exception.Message }
+        }
+        try { [void]$item.Done.Set() } catch { }
+        $item = $null
+    }
+}
+
+function Wait-OpenCodexLinkOwnedServiceReady {
+    param([int]$TimeoutSeconds = 20)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline -and -not $script:state.ExitRequested) {
+        Receive-OpenCodexLinkTrayIpc
+        Update-OpenCodexLinkTrayStatus
+        if ($script:state.StatusText -eq 'running') { return $true }
+        Start-Sleep -Milliseconds 40
+    }
+    return $script:state.StatusText -eq 'running'
+}
+
 $null = New-OpenCodexLinkTrayRecord -DataDir $DataDir -Identity $identity -PipeName $PipeName
 
 $pipeRunspace = [runspacefactory]::CreateRunspace()
@@ -189,14 +216,20 @@ $pipeRunspace.Open()
 $pipeWorker = [powershell]::Create()
 $pipeWorker.Runspace = $pipeRunspace
 $null = $pipeWorker.AddScript({
-    param($State, $Name, $Handler)
+    param($State, $Name, $Queue)
     while (-not $State.ExitRequested) {
         $pipe = $null
         try {
-            $pipe = New-Object System.IO.Pipes.NamedPipeServerStream($Name, [System.IO.Pipes.PipeDirection]::InOut, 1)
+            $pipe = New-Object System.IO.Pipes.NamedPipeServerStream(
+                $Name,
+                [System.IO.Pipes.PipeDirection]::InOut,
+                1,
+                [System.IO.Pipes.PipeTransmissionMode]::Byte,
+                [System.IO.Pipes.PipeOptions]::Asynchronous
+            )
             $async = $pipe.BeginWaitForConnection($null, $null)
             while (-not $async.IsCompleted -and -not $State.ExitRequested) {
-                Start-Sleep -Milliseconds 150
+                Start-Sleep -Milliseconds 80
             }
             if ($State.ExitRequested) { break }
             $pipe.EndWaitForConnection($async)
@@ -206,8 +239,18 @@ $null = $pipeWorker.AddScript({
             $line = $reader.ReadLine()
             if (-not [string]::IsNullOrWhiteSpace($line)) {
                 $command = $line | ConvertFrom-Json
-                $response = & $Handler $command
-                $writer.WriteLine(($response | ConvertTo-Json -Compress -Depth 5))
+                $done = New-Object System.Threading.ManualResetEventSlim $false
+                $work = [hashtable]::Synchronized(@{
+                    Command = $command
+                    Response = $null
+                    Done = $done
+                })
+                $Queue.Enqueue($work)
+                if ($done.Wait(30000) -and $work.Response) {
+                    $writer.WriteLine(($work.Response | ConvertTo-Json -Compress -Depth 5))
+                } else {
+                    $writer.WriteLine((@{ ok = $false; error = 'tray ipc timeout' } | ConvertTo-Json -Compress))
+                }
             }
         } catch {
             $State.LastError = $_.Exception.Message
@@ -215,22 +258,28 @@ $null = $pipeWorker.AddScript({
             if ($pipe) { $pipe.Dispose() }
         }
     }
-}).AddArgument($script:state).AddArgument($PipeName).AddArgument(${function:Invoke-OpenCodexLinkTrayCommand})
+}).AddArgument($script:state).AddArgument($PipeName).AddArgument($script:ipcQueue)
 $null = $pipeWorker.BeginInvoke()
 
 try {
-    Start-OpenCodexLinkOwnedService
+    $null = Start-OpenCodexLinkService -InstallRoot $script:state.InstallRoot -DataDir $script:state.DataDir -Port $script:state.Port -NoWait
 } catch {
     $script:state.LastError = $_.Exception.Message
     $script:state.StatusText = 'error'
 }
 
-if (-not $NoOpen -and $script:state.StatusText -eq 'running') {
+$null = Wait-OpenCodexLinkOwnedServiceReady -TimeoutSeconds 20
+
+if (-not $NoOpen -and $script:state.StatusText -eq 'running' -and $env:CODEX_PWA_TEST_ISOLATION -ne '1') {
     Start-Process (Get-OpenCodexLinkConsoleUrl) | Out-Null
 }
 
 if ($Headless) {
-    while (-not $script:state.ExitRequested) { Start-Sleep -Milliseconds 300 }
+    while (-not $script:state.ExitRequested) {
+        Receive-OpenCodexLinkTrayIpc
+        Start-Sleep -Milliseconds 40
+    }
+    Receive-OpenCodexLinkTrayIpc
 } else {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -311,8 +360,9 @@ if ($Headless) {
     $notify.ContextMenuStrip = $menu
 
     $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 800
+    $timer.Interval = 50
     $timer.add_Tick({
+        Receive-OpenCodexLinkTrayIpc
         if ($script:state.ExitRequested) { [System.Windows.Forms.Application]::Exit() }
         Refresh-OpenCodexLinkMenu
     })
@@ -326,6 +376,10 @@ if ($Headless) {
 }
 
 $script:state.ExitRequested = $true
+Receive-OpenCodexLinkTrayIpc
+if ($Headless) {
+    try { Stop-OpenCodexLinkOwnedService } catch { }
+}
 Start-Sleep -Milliseconds 400
 try { $pipeWorker.Stop() } catch { }
 try { $pipeWorker.Dispose() } catch { }

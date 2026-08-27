@@ -25,7 +25,8 @@ $scripts = @(
     (Join-Path $here 'start.ps1'),
     (Join-Path $here 'package-windows.ps1'),
     (Join-Path $here 'OpenCodexLink.Tests.ps1'),
-    (Join-Path $here 'OpenCodexLink.Package.Tests.ps1')
+    (Join-Path $here 'OpenCodexLink.Package.Tests.ps1'),
+    (Join-Path $here 'OpenCodexLink.TrayIpc.Tests.ps1')
 )
 foreach ($scriptPath in $scripts) {
     Test-OpenCodexLinkPowerShellSyntax -Path $scriptPath
@@ -43,6 +44,7 @@ Assert-True ($forbidden -contains '.env') 'package plan forbids .env'
 Assert-True ($forbidden -contains 'src') 'package plan forbids src'
 Assert-True ($forbidden -contains 'server') 'package plan forbids server source'
 Assert-True ($forbidden -contains 'trusted-devices.json') 'package plan forbids device credentials'
+Assert-True ($forbidden -contains 'scripts\OpenCodexLink.TrayIpc.Tests.ps1') 'package plan forbids tray IPC tests'
 
 $sampleZipEntries = @(
     'OpenCodexLink/dist/index.html',
@@ -214,4 +216,6 @@ if ($failed -gt 0) {
     exit 1
 }
 Write-Host 'All OpenCodex Link tray identity tests passed.'
-exit 0
+$ipcTests = Join-Path $here 'OpenCodexLink.TrayIpc.Tests.ps1'
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ipcTests
+exit $LASTEXITCODE

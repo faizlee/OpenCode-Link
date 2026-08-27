@@ -111,7 +111,8 @@ function Start-OpenCodexLinkService {
     param(
         [Parameter(Mandatory = $true)][string]$InstallRoot,
         [string]$DataDir,
-        [int]$Port = 0
+        [int]$Port = 0,
+        [switch]$NoWait
     )
 
     $InstallRoot = [IO.Path]::GetFullPath($InstallRoot)
@@ -170,6 +171,9 @@ function Start-OpenCodexLinkService {
         if ([string]::IsNullOrWhiteSpace($previousHost)) { Remove-Item Env:\CODEX_PWA_HOST -ErrorAction SilentlyContinue } else { $env:CODEX_PWA_HOST = $previousHost }
     }
 
+    if ($NoWait) {
+        return Get-OpenCodexLinkLiveOccupant -Port $Port -DataDir $DataDir -Candidate $candidate
+    }
     if (-not (Wait-OpenCodexLinkServiceReady -Port $Port -TimeoutSeconds 20)) {
         throw ("OpenCodex Link failed to start. See $stderrPath")
     }

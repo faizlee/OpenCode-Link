@@ -48,9 +48,15 @@ function Ensure-EnvironmentFile {
     ) | Set-Content -LiteralPath $environmentPath -Encoding ascii
 }
 
-Ensure-EnvironmentFile
+if ($env:CODEX_PWA_TEST_ISOLATION -eq '1') {
+    $resolvedPort = Get-OpenCodexLinkResolvedPort -Port $Port -InstallRoot $projectRoot
+    $resolvedData = Get-OpenCodexLinkResolvedDataDir -DataDir $DataDir
+    Assert-OpenCodexLinkTestIsolation -DataDir $resolvedData -Port $resolvedPort
+} else {
+    Ensure-EnvironmentFile
+}
 
-if (-not $NoBuild -and (Test-Path -LiteralPath (Join-Path $projectRoot 'src'))) {
+if (-not $NoBuild -and $env:CODEX_PWA_TEST_ISOLATION -ne '1' -and (Test-Path -LiteralPath (Join-Path $projectRoot 'src'))) {
     if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules'))) { npm.cmd install }
     npm.cmd run build
 }

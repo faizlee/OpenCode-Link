@@ -18,6 +18,7 @@
 - 开发目录若存在 `src` 才构建；便携包不含源码，日常启动只运行已构建产物。
 - `GET /api/health` 在兼容字段之外提供 `productId`、`version`、`buildId`、`instanceId`。`GET /api/runtime` 仅回环，不返回 `controlToken`。停止优先走回环 `POST /api/runtime/shutdown` 加控制令牌。
 - `scripts/stop.ps1` 先请求托盘，再按 `runtime.json`、进程与回环身份证明停止；分类为 Unknown/Unproven 时拒绝，不按端口杀进程。
+- 托盘命名管道只负责入队；命令由 UI/Headless 主线程处理，避免独立 runspace 调用主线程函数。
 - 设备授权仍在 `%LOCALAPPDATA%/OpenCodexLink/trusted-devices.json`，不在便携包目录。
 - `/setup/*` 进入五区管理台；二维码按需签发。手机 `/` 仍是原任务界面。
 - Windows 便携包含 `dist`、`dist-server`、生产 `node_modules`、捆绑 Node、托盘模块/脚本/图标、README、cmd 与 package 元数据；不含 `src`、`server` 源码、`.env`、真实设备数据或凭据。覆盖同一解压目录时保留已有 `.env`，但 zip 本身不带密码。
@@ -148,6 +149,7 @@
 
 - `npm run typecheck`、`npm test`、`npm run build`、`npm run package:windows`。
 - 身份分类：新版、本产品前任、未知占用、陈旧 PID、版本/安装根不一致。
+- 隔离 Headless 托盘 IPC：ping/status/open/stop/start、同版本第二次 launch 唤醒、不同版本 shutdown-for-replace 释放 mutex；不启动真实 NotifyIcon，不触碰 live LOCALAPPDATA 与 8787。
 - 设备改名不新增、不换 token；批量解除精确；重启保留；坏 JSON 不被空表覆盖。
 - `/setup/*` 路由不落入手机登录；概览不自动签发二维码；连接状态查询不签发票据。
 - Redline 管理台与手机样式作用域隔离。

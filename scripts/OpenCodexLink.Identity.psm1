@@ -434,7 +434,8 @@ function Get-OpenCodexLinkPortableForbiddenRelativePaths {
         'server',
         'trusted-devices.json',
         'scripts\OpenCodexLink.Tests.ps1',
-        'scripts\OpenCodexLink.Package.Tests.ps1'
+        'scripts\OpenCodexLink.Package.Tests.ps1',
+        'scripts\OpenCodexLink.TrayIpc.Tests.ps1'
     )
 }
 
@@ -501,7 +502,7 @@ function Test-OpenCodexLinkPortableZipEntries {
     if ($entries | Where-Object { $_ -match '(^|/)trusted-devices\.json$' }) {
         throw 'Portable zip must not contain trusted-devices.json.'
     }
-    foreach ($rel in @('scripts/OpenCodexLink.Tests.ps1', 'scripts/OpenCodexLink.Package.Tests.ps1')) {
+    foreach ($rel in @('scripts/OpenCodexLink.Tests.ps1', 'scripts/OpenCodexLink.Package.Tests.ps1', 'scripts/OpenCodexLink.TrayIpc.Tests.ps1')) {
         if (Test-OpenCodexLinkPortableZipHasPackagePath -Entries $entries -RelativeUnix $rel) {
             throw "Portable zip must not contain $rel."
         }

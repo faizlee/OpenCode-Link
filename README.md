@@ -113,7 +113,7 @@ npm run package:windows
 
 包内不含 `src`、`server` 源码、`.env`、真实设备数据或凭据。目标电脑不需要另装 Node.js。启动默认由托盘管理；设备数据继续使用固定的 `%LOCALAPPDATA%\OpenCodexLink\`。覆盖同一解压目录时保留已有 `.env` 密码，但密码不会进入 zip。
 
-仓库内可用 `npm run test:package` 校验包清单，并在临时目录、随机非 8787 端口探测 `/api/health`、`/api/runtime` 和 `/setup`，不启动真实托盘。
+仓库内可用 `npm run test:package` 校验包清单，并在临时目录、随机非 8787 端口探测 `/api/health`、`/api/runtime` 和 `/setup`。`scripts/OpenCodexLink.Tests.ps1` 另含隔离 Headless 托盘 IPC（ping/status/stop/start/同版本唤醒/换版释放 mutex），不创建真实 NotifyIcon，也不触碰 live LOCALAPPDATA 与 8787。
 
 ## 从手机进入
 
