@@ -29,7 +29,7 @@
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx", "server/http-app.ts", "server/session.ts"],
-      "evidence": "The authorized candidate exposes one desktop-generated QR, prefers a detected Tailscale route so the user does not hunt for a second address, falls back to LAN/stable-name when Tailscale is absent, preserves one device row, and keeps technical addresses diagnostic-only."
+      "evidence": "The authorized candidate exposes one desktop-generated QR that first uses the currently scannable LAN/stable route, then probes Tailscale and other trusted candidates through a source-validated iframe handshake before migrating the same device identity. Technical addresses remain diagnostic-only."
     }
   ],
   "checks": [
@@ -49,7 +49,7 @@
       "name": "One-entry route selection and failover regression",
       "status": "passed",
       "command": "npm run typecheck; npm test; npm run build; npm run package:windows; npm run test:package",
-      "evidence": "17 test files and 56 tests passed. The pairing API regression proves that one desktop-generated QR prefers Tailscale when detected and falls back to LAN/stable-name when absent. The target phone independently proved the Tailscale address is reachable; final desktop-QR phone acceptance remains pending."
+      "evidence": "17 test files and 57 tests passed. The pairing API regression proves that one desktop-generated QR remains scannable on LAN while the route-probe endpoint and source validation provide a browser-safe path check before automatic Tailscale migration. The target phone independently proved the Tailscale address is reachable; final desktop-QR phone acceptance remains pending."
     }
   ],
   "residualScan": {

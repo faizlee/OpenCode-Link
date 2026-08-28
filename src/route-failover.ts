@@ -1,5 +1,6 @@
 export const ROUTE_STATE_KEY = "opencodexlink-route-state-v1";
 export const ROUTE_HASH_KEY = "ocl-route";
+export const ROUTE_PROBE_MESSAGE = "opencodexlink-route-probe";
 
 export interface RouteLink {
   origin: string;
@@ -55,6 +56,39 @@ export function credentialFromHash(hash: string) {
 
 export function routeHash(credential: string) {
   return `#${ROUTE_HASH_KEY}=${encodeURIComponent(credential)}`;
+}
+
+export function isRouteProbeMessage(origin: string, expectedOrigin: string, data: unknown) {
+  if (origin !== expectedOrigin || !data || typeof data !== "object") return false;
+  const message = data as { type?: unknown; productId?: unknown };
+  return message.type === ROUTE_PROBE_MESSAGE && message.productId === "OpenCodexLink";
+}
+
+export function probeRouteOrigin(origin: string, timeoutMs = 2_500) {
+  return new Promise<boolean>((resolve) => {
+    const frame = document.createElement("iframe");
+    let settled = false;
+    let timer = 0;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== frame.contentWindow) return;
+      if (isRouteProbeMessage(event.origin, origin, event.data)) finish(true);
+    };
+    const finish = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+      frame.remove();
+      resolve(result);
+    };
+    timer = window.setTimeout(() => finish(false), timeoutMs);
+    window.addEventListener("message", onMessage);
+    frame.hidden = true;
+    frame.setAttribute("aria-hidden", "true");
+    frame.src = `${origin}/api/route-probe?ts=${Date.now()}`;
+    frame.addEventListener("error", () => finish(false), { once: true });
+    document.body.append(frame);
+  });
 }
 
 export function sanitizeRouteLinks(links: RouteLink[]) {

@@ -31,6 +31,7 @@ import {
   isStableHost,
   isTailscaleHost,
   loadRouteState,
+  probeRouteOrigin,
   routeHash,
   saveRouteState,
   type RouteLink,
@@ -250,10 +251,7 @@ function PreferredAddressAdopter({ authenticated, connection }: { authenticated:
 
         for (const link of candidates) {
           try {
-            const health = await fetchWithTimeout(`${link.origin}/api/health`, { cache: "no-store" }, 2_500);
-            if (!health.ok) continue;
-            const identity = await health.json() as { ok?: boolean; productId?: string };
-            if (!identity.ok || identity.productId !== "OpenCodexLink") continue;
+            if (!await probeRouteOrigin(link.origin)) continue;
             const destination = new URL(`${window.location.pathname}${window.location.search}`, link.origin);
             destination.hash = routeHash(cachedState.credential).slice(1);
             window.location.replace(destination.toString());

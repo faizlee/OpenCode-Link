@@ -36,11 +36,10 @@ export function selectInitialPairingAddress(
   stableAddress: StableLanAddress | null,
   tailscaleAddresses: TailscaleAddress[],
 ): PairingCandidate | null {
-  // The desktop exposes one add-phone entry and owns transport selection.
-  // Prefer the remote-capable Tailscale route when the computer has one, so
-  // the user never has to discover and reopen a second address after pairing.
-  // Machines without Tailscale keep the zero-setup LAN/stable-name fallback.
-  return tailscaleAddresses[0] ?? lanAddresses[0] ?? stableAddress ?? null;
+  // The first scan must work on the network the phone is using now. After
+  // pairing, the page probes other candidates internally and migrates the
+  // same device identity without exposing address choices to the user.
+  return lanAddresses[0] ?? stableAddress ?? tailscaleAddresses[0] ?? null;
 }
 
 function requireLoopback(request: Request, response: Response, message: string) {
@@ -136,6 +135,12 @@ export function createBridgeApp(services: BridgeAppServices): Express {
     setRouteProbeHeaders(request, response);
     response.setHeader("Cache-Control", "no-store");
     response.json(publicHealth(identity, appServerReady()));
+  });
+
+  app.get("/api/route-probe", (_request, response) => {
+    response.removeHeader("X-Frame-Options");
+    response.setHeader("Cache-Control", "no-store");
+    response.type("html").send(`<!doctype html><meta charset="utf-8"><script>parent.postMessage({type:"opencodexlink-route-probe",productId:"OpenCodexLink"},"*")</script>`);
   });
 
   app.get("/api/runtime", (request, response) => {

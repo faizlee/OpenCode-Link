@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   credentialFromHash,
+  isRouteProbeMessage,
   isStableHost,
   isTailscaleHost,
   isTrustedRouteOrigin,
@@ -37,5 +38,12 @@ describe("route failover helpers", () => {
     expect(hash).toBe("#ocl-route=r1.device.secret");
     expect(credentialFromHash(hash)).toBe(credential);
     expect(credentialFromHash("#other=value")).toBe("");
+  });
+
+  it("accepts only the expected OpenCodex Link iframe probe origin", () => {
+    const message = { type: "opencodexlink-route-probe", productId: "OpenCodexLink" };
+    expect(isRouteProbeMessage("http://100.83.218.96:8787", "http://100.83.218.96:8787", message)).toBe(true);
+    expect(isRouteProbeMessage("http://attacker.test", "http://100.83.218.96:8787", message)).toBe(false);
+    expect(isRouteProbeMessage("http://100.83.218.96:8787", "http://100.83.218.96:8787", { ...message, productId: "Other" })).toBe(false);
   });
 });
