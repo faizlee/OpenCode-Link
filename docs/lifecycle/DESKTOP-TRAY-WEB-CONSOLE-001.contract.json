@@ -15,37 +15,37 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md", "docs/desktop-console-design.md"],
-      "evidence": "Current product authority and candidate source record the tray-owned service lifecycle, browser-hosted Redline console, one-QR phone-to-computer binding, internal invisible transport selection, and the implementation-candidate boundary. The superseded three-choice pairing UI has been removed; remaining target-phone and target-machine acceptance stays open."
+      "evidence": "Current product authority records the tray-owned lifecycle, browser Redline console, one authorization QR, and two named post-pairing shortcuts for local and remote use. The shortcut change is contract-ready but not implemented."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "DESKTOP-TRAY-WEB-CONSOLE-001 remains user_confirmed; its 2026-08-29 update keeps QR-only authorization but replaces LAN/stable-name/Tailscale user choices with one pairing QR and software-owned path selection. Automatic download, WebView2, and full native UI remain deferred."
+      "evidence": "DESKTOP-TRAY-WEB-CONSOLE-001 remains user_confirmed; the 2026-08-29 update keeps one QR for authorization and adds local and remote home-screen shortcuts derived from the same device binding. Automatic download, WebView2, and full native UI remain deferred."
     },
     {
       "class": "conflict_audit",
-      "status": "synced",
+      "status": "conflict",
       "paths": ["README.md", "scripts/launch.ps1", "scripts/stop.ps1", "scripts/tray.ps1", "docs/desktop-console-implementation-contract.md"],
-      "evidence": "Command scripts are wake or emergency entry points; the tray is the service-lifecycle Owner. Password removal does not open access because every phone request still requires a registered device token. Tailscale remains outside physical mDNS advertising."
+      "evidence": "Tray ownership, QR-only authorization, and mDNS boundaries remain aligned. Runtime phone source conflicts with the latest UX because it still performs automatic route relay and does not expose the two shortcut setup actions."
     },
     {
       "class": "downstream_impact",
-      "status": "synced",
+      "status": "pending",
       "paths": ["src/App.tsx", "src/console", "src/navigation.ts", "server/http-app.ts", "server/runtime.ts", "server/session.ts", "scripts/tray.ps1", "scripts/package-windows.ps1", "package.json"],
-      "evidence": "Web console, one-primary-QR session API, same-device origin adoption, concurrent one-time migration tickets, newest-rollout selection with cached-source rediscovery and latest-user list preview, runtime identity APIs, tray Owner, packaging, and verification consumers exist in this branch as a candidate. No visible LAN/stable-name/Tailscale QR selector remains; this is still not delivery_integrated."
+      "evidence": "Tray, console, one-QR API, device identity, packaging, and task features exist. The pairing-success UI, local and remote shortcut creation, same-device dual-origin completion, and real-phone acceptance remain pending; the old automatic relay is not delivery evidence for the new contract."
     },
     {
       "class": "feature_node_map",
-      "status": "synced",
+      "status": "pending",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/tray.ps1", "src/console/ConsoleApp.tsx"],
-      "evidence": "The target chain is launcher to single tray Owner to identified Node service to browser console, then one QR that binds a phone to the computer, persistent LOCALAPPDATA device identity, and software-owned LAN/stable-name/Tailscale selection and failover."
+      "evidence": "The target chain is launcher to tray Owner to identified Node service to browser console, then one QR binding one phone identity and a pairing-success flow that creates local and remote shortcuts for that identity. Runtime completion is pending."
     },
     {
       "class": "runtime_capability_map",
-      "status": "synced",
+      "status": "pending",
       "paths": ["scripts/tray.ps1", "scripts/OpenCodexLink.Identity.psm1", "scripts/OpenCodexLink.Service.psm1", "server/runtime.ts", "server/http-app.ts", "src/console/ConsoleApp.tsx"],
-      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, transport discovery, one automatically selected pairing QR, diagnostic-only address details, portable-package identity, and main-thread tray IPC are present in source."
+      "evidence": "STA tray, occupant classification, runtime APIs, five-area Redline console, address discovery, one pairing QR, package identity, and tray IPC exist. Dual-shortcut capability and completion state are not present in the runtime."
     },
     {
       "class": "dependency_closure",
@@ -57,7 +57,7 @@
       "class": "state_owner_contract",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "server/session.ts", "scripts/OpenCodexLink.Service.psm1"],
-      "evidence": "Tray owns service lifecycle; runtime/tray receipts and process proof gate replacement; Unknown/Unproven occupants are fail-closed; QR is the only authorization owner and trusted-device schema/location remain unchanged."
+      "evidence": "Tray owns service lifecycle; replacement remains fail-closed; QR remains the only authorization owner. Both shortcut origins must resolve to the existing trusted-device identity without destructive schema or data changes."
     },
     {
       "class": "config_resource_source",
@@ -67,15 +67,15 @@
     },
     {
       "class": "verification_contract",
-      "status": "synced",
+      "status": "pending",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1", "scripts/OpenCodexLink.TrayIpc.Tests.ps1"],
-      "evidence": "Automated checks cover QR-only authorization, one-visible-QR source/API shape, reliable initial-address selection, concurrent migration tickets, repeated-scan and cross-origin identity reuse, Tailscale classification, model-first naming, device editing, routing, latest-user list preview, and duplicate rollouts."
+      "evidence": "Existing checks cover QR-only authorization, one visible QR, old migration tickets, identity reuse, Tailscale classification, device management, routing, logs, and rollout behavior. New tests for creating and reopening both named shortcuts as one device are missing."
     },
     {
       "class": "roadmap",
-      "status": "synced",
+      "status": "pending",
       "paths": ["docs/README.md", "docs/desktop-console-implementation-contract.md"],
-      "evidence": "The one-QR invisible-transport candidate is implemented, packaged, and locally verified. Remaining work is human NotifyIcon/menu, real-phone path switching, unknown-occupant comparison, and target-machine acceptance. Public internet, automatic download, WebView2, full native UI, release, and delivery_integrated remain deferred."
+      "evidence": "The new roadmap keeps one authorization QR but replaces invisible automatic switching with two named shortcuts. Implementation authorization, shortcut UI/runtime work, real-phone dual-origin proof, NotifyIcon/menu, unknown-occupant comparison, and target-machine acceptance remain open."
     },
     {
       "class": "control_status",
@@ -95,7 +95,7 @@
       "name": "npm test",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Vitest: 16 files, 52 tests passed, including one-primary-QR API shape, reliable initial transport fallback order, absence of a user-facing network selector, concurrent one-time migration tickets, newest valid rollout selection, QR-only authorization, phone-model behavior, repeated-scan identity reuse, and cross-origin adoption preserving the device ID and row count."
+      "evidence": "Historical candidate evidence: Vitest passed for one-QR authorization, automatic transport fallback, migration tickets, identity reuse, and existing product behavior. These tests predate and do not prove the two-shortcut contract."
     },
     {
       "name": "npm run build",
@@ -125,7 +125,7 @@
       "name": "Live local tray and browser acceptance",
       "status": "passed",
       "command": "launch packaged candidate; inspect one-QR /api/pairing response and management UI; pair at 390px through its LAN primary URL; observe automatic Tailscale migration and task-list entry; close tabs and reset viewport; delete only the temporary device; compare trusted-devices.json SHA-256",
-      "evidence": "The final candidate runs from release/deployed-one-qr-final-20260829-015650/OpenCodexLink with tray PID 16400 and service PID 59892 on build 0.1.0+20260828T175508Z. /api/pairing returned exactly one primary QR at http://192.168.31.181:8787 while retaining three diagnostic address records with no extra QR or URL fields. The management panel showed one QR and no LAN/stable-name/Tailscale selector. A 390px browser used that LAN QR, then automatically migrated the same identity to http://100.83.218.96:8787/ and displayed the task list without a rescan or expired-ticket page. The migration-ticket overwrite found during the first probe was fixed with typed concurrent one-time migration tickets; refreshing a pairing QR now replaces only pairing tickets and cannot cancel an in-flight migration. Temporary verification devices L6up9BokHVOM7CM1, 2IqgDFJ9RJaOCq7t, and bmVyKr602NCgIS73 were removed; all three pre-existing device IDs remain and trusted-devices.json returned to SHA-256 309905AC61C461B5B479CC659B1EA90C93EC665662E57067E48BDDF915495A1C."
+      "evidence": "Historical candidate evidence: the deployed old build proved one QR and same-device automatic migration in a desktop browser while preserving live trusted-device data. It did not prove two named home-screen shortcuts on a real phone."
     },
     {
       "name": "git diff --check",
@@ -136,7 +136,7 @@
   ],
   "residualScan": {
     "required": true,
-    "status": "passed",
+    "status": "pending",
     "scope": [
       "README.md",
       "docs/README.md",
@@ -149,8 +149,8 @@
       "package.json"
     ],
     "patterns": [
-      "implementation_not_started",
-      "尚未实施",
+      "dual shortcut implementation missing",
+      "two home-screen shortcut actions missing",
       "port-only ownership",
       "unknown-process termination",
       "browser owns service lifecycle",
@@ -158,19 +158,19 @@
       "password login still enabled",
       "missing password bypasses pairing",
       "Tailscale included in mDNS broadcast",
-      "user selects LAN stable-name or Tailscale QR",
-      "multiple user-facing pairing QR choices",
+      "separate LAN and Tailscale authorization QR",
+      "automatic failover still presented as current product UX",
       "first matching rollout wins",
       "cached old rollout never rediscovered",
       "Redline article semantics as admin UI",
       "delivery_integrated as completed"
     ],
-    "unresolved": []
+    "unresolved": ["src/App.tsx and src/route-failover.ts retain the superseded automatic relay", "src/console/ConsoleApp.tsx does not provide the local and remote shortcut setup flow", "No real-phone receipt proves both shortcuts reopen one trusted-device row"]
   },
   "gate": {
-    "allowed": true,
-    "blockers": [],
-    "allowedNextAction": "complete_real_phone_network_switch_notifyicon_unknown_occupant_and_target_machine_acceptance_then_evaluate_delivery_integrated",
-    "stopLine": "Stop on unprovable process identity, guessed phone model, model-based credential merging, user-rename overwrite, device-credential schema drift, public exposure, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before real-phone network switching and the remaining human acceptance are verified."
+    "allowed": false,
+    "blockers": ["Latest dual-shortcut product contract is not implemented or verified", "Explicit authorization to modify runtime code for this change is still required"],
+    "allowedNextAction": "wait_for_explicit_implementation_authorization_then_implement_test_package_and_verify_dual_shortcut_flow",
+    "stopLine": "Do not modify runtime code until explicitly authorized. Do not write delivery_integrated before both shortcuts reopen one real-phone device identity and the remaining tray and target-machine acceptance is verified."
   }
 }

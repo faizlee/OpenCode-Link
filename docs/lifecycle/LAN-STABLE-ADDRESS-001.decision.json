@@ -11,25 +11,25 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md", "docs/desktop-console-design.md"],
-      "evidence": "LAN IP, stable name, Tailscale, and future transports are internal candidates behind one phone-to-computer binding and one QR."
+      "evidence": "One QR binds the phone to the computer; the post-pairing flow exposes two named shortcuts, local and remote, while keeping raw addresses hidden."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "The structured ledger records automatic reachability-based selection, invisible path switching, diagnostic-only technical addresses, and same-device identity preservation."
+      "evidence": "The structured ledger records a local shortcut backed by LAN or stable name, a remote shortcut backed by Tailscale, diagnostic-only technical addresses, and one shared device identity."
     },
     {
       "class": "conflict_audit",
-      "status": "synced",
-      "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx"],
-      "evidence": "The LAN/stable-name/Tailscale pairing buttons have been removed from the source. Tailscale remains an internal candidate excluded from physical mDNS and public-internet claims."
+      "status": "conflict",
+      "paths": ["docs/desktop-console-implementation-contract.md", "src/App.tsx", "src/route-failover.ts", "src/console/ConsoleApp.tsx"],
+      "evidence": "The current runtime still treats LAN, stable name, and Tailscale as automatic failover candidates and has no local/remote shortcut setup UI. The old behavior is retained only as superseded candidate evidence."
     },
     {
       "class": "downstream_impact",
-      "status": "synced",
+      "status": "pending",
       "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx", "server/network.ts", "server/http-app.ts", "server/session.ts"],
-      "evidence": "The candidate selects one reliable initial address, keeps one trusted-device identity across origins, shows one pairing QR, retains technical status for diagnosis, and preserves concurrent one-time migration tickets so Tailscale and stable-name fallback do not invalidate each other."
+      "evidence": "Runtime work must generate both named shortcuts from one binding, establish independent origin sessions for one device row, keep Tailscale outside mDNS, and provide a clear continuation when the remote route is unavailable during initial setup."
     }
   ],
   "checks": [
@@ -40,23 +40,23 @@
       "evidence": "The updated structured decision file parses successfully."
     },
     {
-      "name": "Current authority residual scan",
-      "status": "passed",
+      "name": "Current authority and runtime residual scan",
+      "status": "pending",
       "command": "rg semantic transport-selection wording in current product and contract sources",
-      "evidence": "Current authorities and source expose one QR and make transport selection internal; the old source UI mismatch is removed."
+      "evidence": "Authority documents now define the two shortcuts, but runtime source still contains the superseded automatic path-selection behavior and lacks the two shortcut actions."
     }
   ],
   "residualScan": {
     "required": true,
-    "status": "passed",
-    "scope": ["docs/product-decisions.json", "README.md", "docs/desktop-console-design.md", "docs/desktop-console-implementation-contract.md", "docs/README.md"],
-    "patterns": ["Tailscale独立用户二维码", "用户选择连接入口", "切换入口新增设备", "网络变化要求重新扫码", "Tailscale加入mDNS广播"],
-    "unresolved": []
+    "status": "pending",
+    "scope": ["docs/product-decisions.json", "README.md", "docs/desktop-console-design.md", "docs/desktop-console-implementation-contract.md", "docs/README.md", "src", "server"],
+    "patterns": ["Tailscale独立授权二维码", "切换入口新增设备", "网络变化要求重新扫码", "Tailscale加入mDNS广播", "自动路径切换仍作为当前产品体验", "缺少局域网和远程快捷入口"],
+    "unresolved": ["Current runtime keeps automatic route probing and relay", "Current management and pairing UI does not create the two named shortcuts"]
   },
   "gate": {
-    "allowed": true,
-    "blockers": [],
-    "allowedNextAction": "complete_real_phone_lan_stable_tailscale_switch_acceptance",
-    "stopLine": "Do not expose the service publicly, add Tailscale to physical mDNS, alter trusted-device semantics, or claim target-phone seamless switching before real-phone verification."
+    "allowed": false,
+    "blockers": ["The confirmed local and remote shortcut behavior is not implemented", "The new runtime change has not received explicit implementation authorization"],
+    "allowedNextAction": "wait_for_explicit_implementation_authorization_then_implement_local_and_remote_shortcuts",
+    "stopLine": "Do not modify runtime code without explicit implementation authorization; do not expose the service publicly, add Tailscale to mDNS, or claim the new shortcut flow is delivered."
   }
 }

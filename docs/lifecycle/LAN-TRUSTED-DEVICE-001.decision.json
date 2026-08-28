@@ -13,25 +13,25 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines QR-only authorization, one phone-to-computer identity, durable trusted-device behavior, repeated-scan identity reuse, invisible cross-path migration, direct reopen without a password, revocation, and model-first default device names with truthful fallback."
+      "evidence": "README defines QR-only authorization, one phone-to-computer identity, durable trusted-device behavior, repeated-scan identity reuse, local and remote shortcut origins mapped to one device, password-free reopen, revocation, and truthful model-first names."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records QR as the only authorization route, no password bypass, persistent device credentials, the same identity across LAN/stable-name/Tailscale path changes without user selection, and model-first names without guessing or merging."
+      "evidence": "Structured decision LAN-TRUSTED-DEVICE-001 records QR as the only authorization route, no password bypass, persistent credentials, the same identity for local and remote shortcut origins, and model-first names without guessing or merging."
     },
     {
       "class": "conflict_audit",
       "status": "synced",
       "paths": ["server/session.ts", "server/pairing.ts", "server/http-app.ts", "README.md", "docs/desktop-console-design.md"],
-      "evidence": "An unpaired request is rejected even without legacy password configuration, password POST is disabled, QR tickets are one-time, and a trusted browser refreshes or adopts its existing identity across stable or Tailscale origins instead of creating a duplicate."
+      "evidence": "An unpaired request is rejected even without legacy password configuration, password POST is disabled, QR tickets are one-time, and the existing identity mechanism can adopt a trusted device across stable or Tailscale origins instead of creating a duplicate."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["server/session.ts", "server/http-app.ts", "server/session.test.ts", "server/http-app.test.ts", "src/console/ConsoleApp.tsx", "docs/desktop-console-implementation-contract.md"],
-      "evidence": "The current branch candidate contains QR-only authorization, an unpaired-device scan instruction, persistent rolling credentials, local device management, repeated-scan reuse, stable/Tailscale origin adoption without a new row, model-first naming, and tests."
+      "evidence": "The current branch candidate contains QR-only authorization, persistent rolling credentials, device management, repeated-scan reuse, cross-origin adoption without a new row, model-first naming, and tests. The two-shortcut UI is tracked by PHONE-ONE-SCAN-001 and DESKTOP-TRAY-WEB-CONSOLE-001."
     }
   ],
   "checks": [
@@ -82,7 +82,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_real_phone_one_qr_reopen_cross_path_identity_model_name_and_rescan_acceptance",
-    "stopLine": "Do not treat missing password configuration as authorization, guess a phone model, merge credentials by model, overwrite a user rename, expose a public internet route, change firewall policy, or substitute automated tests for target-phone acceptance."
+    "allowedNextAction": "preserve_one_device_identity_when_the_authorized_dual_shortcut_implementation_runs",
+    "stopLine": "Do not treat missing password configuration as authorization, create a second device for the remote shortcut, guess a phone model, merge credentials by model, overwrite a user rename, expose a public internet route, or substitute automated tests for target-phone acceptance."
   }
 }
