@@ -25,6 +25,17 @@ import remarkGfm from "remark-gfm";
 import { BridgeClient, upsertRequest } from "./bridge";
 import ConsoleApp from "./console/ConsoleApp";
 import { isDesktopConsolePath, listPath, threadIdFromPath, threadPath } from "./navigation";
+import {
+  clearRouteState,
+  credentialFromHash,
+  isStableHost,
+  isTailscaleHost,
+  loadRouteState,
+  routeHash,
+  saveRouteState,
+  type RouteLink,
+  type RouteState,
+} from "./route-failover";
 import { activeTurnId, applyThreadEvent } from "./thread-state";
 import type { BridgeMessage, CodexThread, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
 
@@ -55,9 +66,32 @@ const MAX_BATCH_BYTES = 200 * 1024 * 1024;
 const SHORTCUT_READY_KEY = "opencodexlink-shortcut-ready-v2";
 
 async function readSession(): Promise<SessionState> {
-  const response = await fetch("/api/session");
-  const data = await response.json();
-  return { loading: false, ...data };
+  const hashCredential = credentialFromHash(window.location.hash);
+  const saved = loadRouteState();
+  const credential = hashCredential || saved?.credential || "";
+  let response = await fetch("/api/session", { cache: "no-store" });
+  let data = await response.json() as SessionState;
+
+  if ((hashCredential || !data.authenticated) && credential) {
+    const adopted = await fetch("/api/session/adopt-route", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    if (adopted.ok) {
+      saveRouteState(credential, saved?.links ?? []);
+      response = await fetch("/api/session", { cache: "no-store" });
+      data = await response.json() as SessionState;
+    }
+  } else if (data.authenticated && credential) {
+    saveRouteState(credential, saved?.links ?? []);
+  }
+
+  if (hashCredential && data.authenticated) {
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+  }
+  return { ...data, loading: false };
 }
 
 function formatWhen(timestamp: number) {
@@ -166,45 +200,91 @@ function InstallShortcut() {
   );
 }
 
-function isTailscaleHost(hostname: string) {
-  const parts = hostname.split(".").map(Number);
-  return parts.length === 4 && parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127;
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 3_000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
-function PreferredAddressAdopter({ authenticated }: { authenticated: boolean }) {
+function PreferredAddressAdopter({ authenticated, connection }: { authenticated: boolean; connection: string }) {
   useEffect(() => {
-    if (!authenticated || isTailscaleHost(window.location.hostname)) return;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 6_000);
+    if (!authenticated) return;
+    let disposed = false;
+    let running = false;
+    let cachedState: RouteState | null = loadRouteState();
 
     const adopt = async () => {
+      if (disposed || running) return;
+      running = true;
+      let currentOriginReachable = false;
       try {
-        const response = await fetch("/api/preferred-links", { method: "POST", cache: "no-store", signal: controller.signal });
-        if (!response.ok) return;
-        const data = await response.json() as { links: Array<{ origin: string; url: string }> };
-        for (const link of data.links) {
-          if (link.origin === window.location.origin) continue;
+        try {
+          const response = await fetchWithTimeout("/api/preferred-links", { method: "POST", cache: "no-store" });
+          if (response.ok) {
+            const data = await response.json() as { credential?: string; links?: RouteLink[] };
+            if (data.credential && Array.isArray(data.links)) {
+              cachedState = saveRouteState(data.credential, data.links);
+              currentOriginReachable = true;
+            }
+          }
+        } catch {
+          // The current address may have disappeared. Cached candidates remain
+          // usable because the route credential is device-bound, not origin-bound.
+        }
+
+        if (!cachedState || disposed) return;
+        const currentIsTailscale = isTailscaleHost(window.location.hostname);
+        if (currentOriginReachable && currentIsTailscale) return;
+
+        const currentIsStable = isStableHost(window.location.hostname);
+        const candidates = cachedState.links.filter((link) => {
+          if (link.origin === window.location.origin) return false;
+          if (!currentOriginReachable) return true;
+          if (link.tailscale) return true;
+          return !currentIsStable && link.stable === true;
+        });
+
+        for (const link of candidates) {
           try {
-            const health = await fetch(`${link.origin}/api/health`, { cache: "no-store", signal: controller.signal });
-            if (!health.ok || !(await health.json()).ok) continue;
-            window.location.replace(link.url);
+            const health = await fetchWithTimeout(`${link.origin}/api/health`, { cache: "no-store" }, 2_500);
+            if (!health.ok) continue;
+            const identity = await health.json() as { ok?: boolean; productId?: string };
+            if (!identity.ok || identity.productId !== "OpenCodexLink") continue;
+            const destination = new URL(`${window.location.pathname}${window.location.search}`, link.origin);
+            destination.hash = routeHash(cachedState.credential).slice(1);
+            window.location.replace(destination.toString());
             return;
           } catch {
-            // Try the next preferred address. Tailscale may not be enabled on
-            // this phone, while the local fixed name can still be available.
+            // Try the next known route. A network path can become available
+            // after this page was opened, so the interval below keeps retrying.
           }
         }
-      } catch {
-        // Remaining on the already-working origin is the intentional fallback.
+      } finally {
+        running = false;
       }
     };
 
     void adopt();
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
+    const timer = window.setInterval(() => void adopt(), 8_000);
+    const onOnline = () => void adopt();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void adopt();
     };
-  }, [authenticated]);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("focus", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("focus", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [authenticated, connection]);
   return null;
 }
 
@@ -746,6 +826,7 @@ export default function App() {
 
   async function logout() {
     await fetch("/api/session", { method: "DELETE" });
+    clearRouteState();
     bridge.disconnect();
     setSession((current) => ({ ...current, authenticated: false }));
   }
@@ -767,7 +848,7 @@ export default function App() {
   if (setupMode) return <ConsoleApp />;
   if (session.loading) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在连接</p></div>;
   if (!session.authenticated) return <PairingRequiredScreen />;
-  const preferredAddressAdopter = <PreferredAddressAdopter authenticated={session.authenticated} />;
+  const preferredAddressAdopter = <PreferredAddressAdopter authenticated={session.authenticated} connection={connection} />;
   if (opening) return <>{preferredAddressAdopter}<div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div></>;
   if (selected) return <>{preferredAddressAdopter}<ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} deliveryNotice={deliveryNotice} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} /></>;
   return <>{preferredAddressAdopter}<ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} /></>;

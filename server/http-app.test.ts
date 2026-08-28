@@ -140,17 +140,36 @@ describe("bridge HTTP console APIs", () => {
 
       const preferred = await fetch(`${listener.origin}/api/preferred-links`, { method: "POST", headers: { Cookie: cookie } });
       expect(preferred.status).toBe(200);
-      const preferredBody = await preferred.json() as { links: Array<{ url: string; stable: boolean; tailscale: boolean }> };
+      const preferredBody = await preferred.json() as { credential: string; links: Array<{ origin: string; stable: boolean; tailscale: boolean }> };
       const tailscaleLink = preferredBody.links.find((link) => link.tailscale);
       const stableLink = preferredBody.links.find((link) => link.stable);
+      const lanLink = preferredBody.links.find((link) => link.origin.includes("192.168.31.8"));
+      expect(preferredBody.credential).toMatch(/^r1\./);
       expect(tailscaleLink).toBeTruthy();
       expect(stableLink).toBeTruthy();
-      const adoptedTailscale = await fetch(`${listener.origin}${new URL(tailscaleLink?.url ?? "").pathname}`, { redirect: "manual" });
-      const adopted = await fetch(`${listener.origin}${new URL(stableLink?.url ?? "").pathname}`, { redirect: "manual" });
-      expect(adoptedTailscale.status).toBe(303);
-      expect(adopted.status).toBe(303);
+      expect(lanLink).toBeTruthy();
+
+      const adopted = await fetch(`${listener.origin}/api/session/adopt-route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: preferredBody.credential }),
+      });
+      expect(adopted.status).toBe(200);
+      const adoptedCookie = adopted.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+      expect(adoptedCookie).not.toBe(cookie);
+      expect((await (await fetch(`${listener.origin}/api/session`, { headers: { Cookie: adoptedCookie } })).json()) as Record<string, unknown>)
+        .toMatchObject({ authenticated: true });
+      expect((await (await fetch(`${listener.origin}/api/session`, { headers: { Cookie: cookie } })).json()) as Record<string, unknown>)
+        .toMatchObject({ authenticated: true });
       expect(sessions.listDevices()).toHaveLength(1);
       expect(sessions.listDevices()[0].id).toBe(firstDevice.id);
+
+      const forged = await fetch(`${listener.origin}/api/session/adopt-route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: `${preferredBody.credential}x` }),
+      });
+      expect(forged.status).toBe(401);
     } finally {
       await listener.close();
     }

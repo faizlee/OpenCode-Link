@@ -29,7 +29,7 @@
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx", "server/http-app.ts", "server/session.ts"],
-      "evidence": "The authorized candidate exposes one QR, chooses a reliable initial transport internally, preserves the same trusted-device identity across origin changes, keeps technical addresses diagnostic-only, and includes interface/API/migration-ticket regressions."
+      "evidence": "The authorized candidate exposes one QR, chooses a reliable initial transport internally, issues a device-bound revocable route credential, mints independent HttpOnly sessions per trusted origin, continuously retries cached private candidates after the current origin fails, preserves one device row, and keeps technical addresses diagnostic-only."
     }
   ],
   "checks": [
@@ -44,6 +44,12 @@
       "status": "passed",
       "command": "rg semantic multi-QR and user-selected-network wording in current product and contract sources",
       "evidence": "Current authorities and source define one QR and internal transport selection; no user-facing network selector remains in ConsoleApp."
+    },
+    {
+      "name": "Route credential and bidirectional failover regression",
+      "status": "passed",
+      "command": "npm run typecheck; npm test; npm run build; isolated browser network blocking across LAN and Tailscale origins",
+      "evidence": "17 test files and 56 tests passed. An isolated real browser paired on LAN, continued on Tailscale after the LAN origin was blocked, and returned to LAN after the Tailscale origin was blocked; no pairing screen appeared and the trusted-device registry remained one row with three origin sessions."
     }
   ],
   "residualScan": {

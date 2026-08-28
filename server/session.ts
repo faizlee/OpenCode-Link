@@ -1,10 +1,12 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 
 const COOKIE_NAME = "codex_pwa_session";
 const SESSION_VERSION = "v2";
+const ROUTE_CREDENTIAL_VERSION = "r1";
+const MAX_ORIGIN_SESSIONS = 16;
 // Browsers may cap long cookie lifetimes. Refreshing this rolling cookie on
 // every visit keeps a regularly used trusted device signed in indefinitely.
 const COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
@@ -12,6 +14,7 @@ const COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
 interface StoredDevice {
   id: string;
   tokenHash: string;
+  sessionTokenHashes?: string[];
   name: string;
   createdAt: number;
   lastSeenAt: number;
@@ -51,6 +54,13 @@ function safeEqual(left: string, right: string) {
 
 function tokenHash(token: string) {
   return createHash("sha256").update(token).digest("base64url");
+}
+
+function routeCredential(device: StoredDevice) {
+  const signature = createHmac("sha256", device.tokenHash)
+    .update(`${ROUTE_CREDENTIAL_VERSION}.${device.id}`)
+    .digest("base64url");
+  return `${ROUTE_CREDENTIAL_VERSION}.${device.id}.${signature}`;
 }
 
 function defaultDevicePath() {
@@ -143,8 +153,9 @@ export class SessionStore {
       remoteAddress: request.socket?.remoteAddress ?? "",
     });
     this.save();
-    this.setCookie(response, `${SESSION_VERSION}.${id}.${secret}`, secure);
-    return id;
+    const raw = `${SESSION_VERSION}.${id}.${secret}`;
+    this.setCookie(response, raw, secure);
+    return { id, token: raw };
   }
 
   refresh(request: IncomingMessage, response: ServerResponse, secure: boolean) {
@@ -156,6 +167,28 @@ export class SessionStore {
 
   sessionToken(request: IncomingMessage) {
     return this.validToken(request)?.raw ?? null;
+  }
+
+  routeCredential(request: IncomingMessage) {
+    const token = this.validToken(request);
+    return token ? routeCredential(token.device) : null;
+  }
+
+  adoptRouteCredential(raw: string, response: ServerResponse, secure: boolean, headers?: IncomingHttpHeaders) {
+    const parts = raw.split(".");
+    if (parts.length !== 3 || parts[0] !== ROUTE_CREDENTIAL_VERSION) return false;
+    const device = this.devices.find((entry) => entry.id === parts[1]);
+    if (!device || !safeEqual(routeCredential(device), raw)) return false;
+
+    const secret = randomBytes(32).toString("base64url");
+    const sessionToken = `${SESSION_VERSION}.${device.id}.${secret}`;
+    const nextHash = tokenHash(secret);
+    device.sessionTokenHashes = [
+      ...(device.sessionTokenHashes ?? []).filter((hash) => hash !== nextHash),
+      nextHash,
+    ].slice(-MAX_ORIGIN_SESSIONS);
+    this.refreshToken({ raw: sessionToken, device }, response, secure, headers);
+    return true;
   }
 
   adopt(raw: string, response: ServerResponse, secure: boolean, headers?: IncomingHttpHeaders) {
@@ -224,7 +257,9 @@ export class SessionStore {
     const parts = raw.split(".");
     if (parts.length !== 3 || parts[0] !== SESSION_VERSION) return null;
     const device = this.devices.find((entry) => entry.id === parts[1]);
-    if (!device || !safeEqual(device.tokenHash, tokenHash(parts[2]))) return null;
+    const candidateHash = tokenHash(parts[2]);
+    const acceptedHashes = device ? [device.tokenHash, ...(device.sessionTokenHashes ?? [])] : [];
+    if (!device || !acceptedHashes.some((hash) => safeEqual(hash, candidateHash))) return null;
     return { raw, device };
   }
 

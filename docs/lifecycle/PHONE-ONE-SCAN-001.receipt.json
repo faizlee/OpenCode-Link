@@ -3,7 +3,7 @@
   "receiptType": "feature_lifecycle_validation_receipt",
   "featureId": "PHONE-ONE-SCAN-001",
   "stage": "decision_converged",
-  "manifestDigest": "fcb337de10fc5459bfd23bff7f5f1992cd5641240fcc3536851425ce63049349",
+  "manifestDigest": "ff07edfe4f7b1548f8721a32d5b12ecbd7c79b98f0266fe5bdfbb690418e7749",
   "allowed": true,
   "blockers": [],
   "allowedNextAction": "complete_real_phone_reopen_and_network_change_acceptance_then_evaluate_delivery_integrated",
@@ -21,9 +21,10 @@
     "The confirmed product model binds one phone device to one computer. One QR is the only user-facing add path; transport selection and switching are internal and invisible.",
     "PHONE-ONE-SCAN-001 now records device-to-computer identity, one QR, automatic LAN/stable-name/Tailscale selection, identity preservation, and no rescan on path changes.",
     "The source and contract now expose one pairing QR with no LAN/stable-name/Tailscale selector. Technical addresses remain diagnostic-only, and target-phone acceptance is still distinct from implementation.",
-    "The authorized candidate exposes one QR, chooses a reliable initial transport internally, preserves the same trusted-device identity across origin changes, keeps technical addresses diagnostic-only, and includes interface/API/migration-ticket regressions.",
+    "The authorized candidate exposes one QR, chooses a reliable initial transport internally, issues a device-bound revocable route credential, mints independent HttpOnly sessions per trusted origin, continuously retries cached private candidates after the current origin fails, preserves one device row, and keeps technical addresses diagnostic-only.",
     "The updated structured decision file parses successfully.",
-    "Current authorities and source define one QR and internal transport selection; no user-facing network selector remains in ConsoleApp."
+    "Current authorities and source define one QR and internal transport selection; no user-facing network selector remains in ConsoleApp.",
+    "17 test files and 56 tests passed. An isolated real browser paired on LAN, continued on Tailscale after the LAN origin was blocked, and returned to LAN after the Tailscale origin was blocked; no pairing screen appeared and the trusted-device registry remained one row with three origin sessions."
   ],
   "invalidationConditions": [
     "manifest_digest_changed",

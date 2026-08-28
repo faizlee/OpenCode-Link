@@ -100,6 +100,17 @@ export function createBridgeApp(services: BridgeAppServices): Express {
     response.status(403).json({ error: "密码登录已停用，请在电脑管理台生成二维码并扫码配对" });
   });
 
+  app.post("/api/session/adopt-route", (request, response) => {
+    response.setHeader("Cache-Control", "no-store");
+    if (!requireDeviceStore(sessions, response)) return;
+    const credential = String(request.body?.credential ?? "");
+    if (!credential || !sessions.adoptRouteCredential(credential, response, request.secure, request.headers)) {
+      response.status(401).json({ error: "设备路径凭据无效，请在电脑管理台重新扫码" });
+      return;
+    }
+    response.json({ ok: true });
+  });
+
   app.delete("/api/session", (request, response) => {
     sessions.clear(request, response, request.secure);
     response.json({ ok: true });
@@ -187,25 +198,22 @@ export function createBridgeApp(services: BridgeAppServices): Express {
       response.status(401).json({ error: "需要先完成设备配对" });
       return;
     }
-    const sessionToken = sessions.sessionToken(request);
-    if (!sessionToken) {
+    const credential = sessions.routeCredential(request);
+    if (!credential) {
       response.status(401).json({ error: "当前设备身份已失效，请重新配对" });
       return;
     }
 
-    const tailscale = networkAddresses().tailscaleAddresses;
+    const { lanAddresses, tailscaleAddresses } = networkAddresses();
     const stable = await lanDiscovery.address();
-    const targets = [...tailscale, ...(stable ? [stable] : [])];
-    const links = targets.map((target) => {
-      const ticket = pairing.issue({ sessionToken, kind: "migration" });
-      return {
-        origin: target.origin,
-        url: `${target.origin}/pair/${ticket.token}`,
-        tailscale: "tailscale" in target && target.tailscale === true,
-        stable: "stable" in target && target.stable === true,
-      };
-    });
-    response.json({ links });
+    const targets = [...tailscaleAddresses, ...(stable ? [stable] : []), ...lanAddresses]
+      .filter((target, index, all) => all.findIndex((candidate) => candidate.origin === target.origin) === index);
+    const links = targets.map((target) => ({
+      origin: target.origin,
+      tailscale: "tailscale" in target && target.tailscale === true,
+      stable: "stable" in target && target.stable === true,
+    }));
+    response.json({ credential, links });
   });
 
   app.get("/api/devices", (request, response) => {

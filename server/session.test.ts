@@ -88,6 +88,35 @@ describe("SessionStore", () => {
     expect(store.isAuthenticated(requestWithCookie(cookie))).toBe(true);
   });
 
+  it("uses a revocable route credential to mint independent origin sessions", () => {
+    const path = devicePath();
+    const store = new SessionStore(path);
+    const created = responseRecorder();
+    store.create(requestWithCookie(), created.response, false);
+    const originalCookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+    const credential = store.routeCredential(requestWithCookie(originalCookie));
+    const adopted = responseRecorder();
+
+    expect(credential).toMatch(/^r1\./);
+    expect(store.adoptRouteCredential(credential ?? "", adopted.response, false)).toBe(true);
+    const adoptedCookie = adopted.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+    expect(adoptedCookie).not.toBe(originalCookie);
+    expect(store.isAuthenticated(requestWithCookie(originalCookie))).toBe(true);
+    expect(store.isAuthenticated(requestWithCookie(adoptedCookie))).toBe(true);
+    expect(store.listDevices()).toHaveLength(1);
+    expect(store.adoptRouteCredential(`${credential}x`, responseRecorder().response, false)).toBe(false);
+
+    const restarted = new SessionStore(path);
+    expect(restarted.isAuthenticated(requestWithCookie(originalCookie))).toBe(true);
+    expect(restarted.isAuthenticated(requestWithCookie(adoptedCookie))).toBe(true);
+    expect(restarted.routeCredential(requestWithCookie(adoptedCookie))).toBe(credential);
+
+    expect(store.revoke(store.listDevices()[0].id)).toBe(true);
+    expect(store.isAuthenticated(requestWithCookie(originalCookie))).toBe(false);
+    expect(store.isAuthenticated(requestWithCookie(adoptedCookie))).toBe(false);
+    expect(store.adoptRouteCredential(credential ?? "", responseRecorder().response, false)).toBe(false);
+  });
+
   it("refreshes a repeated scan without adding a trusted-device row", () => {
     const store = new SessionStore(devicePath());
     const created = responseRecorder();
