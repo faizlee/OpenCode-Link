@@ -62,6 +62,7 @@ describe("hydrateThreadFromDesktopLog", () => {
 
     const result = await hydrateThreadFromDesktopLog(baseThread(), { codexHome: root });
 
+    expect(result.preview).toBe("最新文件内容");
     expect(result.turns).toHaveLength(1);
     expect(result.turns[0].items[0].content).toEqual([{ type: "text", text: "最新文件内容" }]);
   });

@@ -149,6 +149,19 @@ function upsertItem(turn: Turn, item: ThreadItem) {
   else turn.items.push(item);
 }
 
+function latestUserPreview(turns: Turn[]) {
+  for (let turnIndex = turns.length - 1; turnIndex >= 0; turnIndex -= 1) {
+    const items = turns[turnIndex].items;
+    for (let itemIndex = items.length - 1; itemIndex >= 0; itemIndex -= 1) {
+      const item = items[itemIndex];
+      if (item.type !== "userMessage") continue;
+      const text = item.content?.find((part) => part.type === "text")?.text;
+      if (typeof text === "string" && text.trim()) return text.trim();
+    }
+  }
+  return null;
+}
+
 function consumeLine(history: CachedHistory, rawLine: string) {
   if (!rawLine.includes('"type":"response_item"') || !rawLine.includes('"type":"message"')) return;
   try {
@@ -285,6 +298,7 @@ export async function hydrateThreadFromDesktopLog(thread: CodexThread, options: 
   }
   return {
     ...thread,
+    preview: latestUserPreview(turns) ?? thread.preview,
     updatedAt: Math.max(thread.updatedAt, history.updatedAt),
     turns,
   };

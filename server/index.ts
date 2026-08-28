@@ -82,7 +82,20 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
           sortDirection: "desc",
           searchTerm: command.searchTerm?.trim() || null,
         }) as ThreadPage;
-        succeed(dedupeThreadPage(result));
+        const page = dedupeThreadPage(result);
+        // The Desktop list preview can remain bound to an older same-ID rollout.
+        // Refresh the most recent (or first searched) card from the persisted log
+        // without expanding every list row into a full-history filesystem scan.
+        if (page.data[0]) {
+          const listed = page.data[0];
+          const hydrated = await hydrateThreadFromDesktopLog(listed);
+          page.data[0] = {
+            ...listed,
+            preview: hydrated.preview,
+            updatedAt: hydrated.updatedAt,
+          };
+        }
+        succeed(page);
         return;
       }
       case "thread:open": {
