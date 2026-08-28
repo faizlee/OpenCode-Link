@@ -11,13 +11,13 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md", "docs/desktop-console-design.md"],
-      "evidence": "The confirmed product model binds one phone device to one computer. One QR is the only user-facing add path; transport selection and switching are internal and invisible."
+      "evidence": "The confirmed product model binds one phone device to one computer. The desktop add-phone action and its one QR are the only user-facing path; users never discover, copy, or manually open technical addresses."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "PHONE-ONE-SCAN-001 now records device-to-computer identity, one QR, automatic LAN/stable-name/Tailscale selection, identity preservation, and no rescan on path changes."
+      "evidence": "PHONE-ONE-SCAN-001 records device-to-computer identity, one desktop-generated QR, no manual address discovery, automatic LAN/stable-name/Tailscale selection, identity preservation, and no rescan on path changes."
     },
     {
       "class": "conflict_audit",
@@ -29,7 +29,7 @@
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx", "server/http-app.ts", "server/session.ts"],
-      "evidence": "The authorized candidate exposes one QR, chooses a reliable initial transport internally, issues a device-bound revocable route credential, mints independent HttpOnly sessions per trusted origin, continuously retries cached private candidates after the current origin fails, preserves one device row, and keeps technical addresses diagnostic-only."
+      "evidence": "The authorized candidate exposes one desktop-generated QR, prefers a detected Tailscale route so the user does not hunt for a second address, falls back to LAN/stable-name when Tailscale is absent, preserves one device row, and keeps technical addresses diagnostic-only."
     }
   ],
   "checks": [
@@ -46,17 +46,17 @@
       "evidence": "Current authorities and source define one QR and internal transport selection; no user-facing network selector remains in ConsoleApp."
     },
     {
-      "name": "Route credential and bidirectional failover regression",
+      "name": "One-entry route selection and failover regression",
       "status": "passed",
-      "command": "npm run typecheck; npm test; npm run build; isolated browser network blocking across LAN and Tailscale origins",
-      "evidence": "17 test files and 56 tests passed. An isolated real browser paired on LAN, continued on Tailscale after the LAN origin was blocked, and returned to LAN after the Tailscale origin was blocked; no pairing screen appeared and the trusted-device registry remained one row with three origin sessions."
+      "command": "npm run typecheck; npm test; npm run build; npm run package:windows; npm run test:package",
+      "evidence": "17 test files and 56 tests passed. The pairing API regression proves that one desktop-generated QR prefers Tailscale when detected and falls back to LAN/stable-name when absent. The target phone independently proved the Tailscale address is reachable; final desktop-QR phone acceptance remains pending."
     }
   ],
   "residualScan": {
     "required": true,
     "status": "passed",
     "scope": ["docs/product-decisions.json", "README.md", "docs/desktop-console-design.md", "docs/desktop-console-implementation-contract.md", "docs/README.md"],
-    "patterns": ["用户选择局域网或Tailscale二维码", "网络变化后重新扫码", "不同入口登记为不同设备", "Tailscale单独用户二维码"],
+    "patterns": ["用户选择局域网或Tailscale二维码", "网络变化后重新扫码", "不同入口登记为不同设备", "Tailscale单独用户二维码", "用户手工查找技术地址"],
     "unresolved": []
   },
   "gate": {

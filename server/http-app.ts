@@ -36,10 +36,11 @@ export function selectInitialPairingAddress(
   stableAddress: StableLanAddress | null,
   tailscaleAddresses: TailscaleAddress[],
 ): PairingCandidate | null {
-  // The first scan must work without assuming that the phone already has
-  // Tailscale or .local resolution. Once authenticated, the phone probes the
-  // other candidates and migrates the same device identity internally.
-  return lanAddresses[0] ?? stableAddress ?? tailscaleAddresses[0] ?? null;
+  // The desktop exposes one add-phone entry and owns transport selection.
+  // Prefer the remote-capable Tailscale route when the computer has one, so
+  // the user never has to discover and reopen a second address after pairing.
+  // Machines without Tailscale keep the zero-setup LAN/stable-name fallback.
+  return tailscaleAddresses[0] ?? lanAddresses[0] ?? stableAddress ?? null;
 }
 
 function requireLoopback(request: Request, response: Response, message: string) {

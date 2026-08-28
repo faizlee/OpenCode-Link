@@ -53,9 +53,10 @@ describe("bridge HTTP console APIs", () => {
     const stable = { name: "固定名称", address: "opencodexlink.local", origin: "http://opencodexlink.local", stable: true as const };
     const tailscale = { name: "Tailscale", address: "100.83.218.96", origin: "http://100.83.218.96:8787", tailscale: true as const };
 
-    expect(selectInitialPairingAddress([lan], stable, [tailscale])).toEqual(lan);
-    expect(selectInitialPairingAddress([], stable, [tailscale])).toEqual(stable);
-    expect(selectInitialPairingAddress([], null, [tailscale])).toEqual(tailscale);
+    expect(selectInitialPairingAddress([lan], stable, [tailscale])).toEqual(tailscale);
+    expect(selectInitialPairingAddress([], stable, [tailscale])).toEqual(tailscale);
+    expect(selectInitialPairingAddress([lan], stable, [])).toEqual(lan);
+    expect(selectInitialPairingAddress([], stable, [])).toEqual(stable);
     expect(selectInitialPairingAddress([], null, [])).toBeNull();
   });
 
@@ -102,8 +103,8 @@ describe("bridge HTTP console APIs", () => {
         primary: { origin: string; url: string; qr: string };
         addresses: Array<Record<string, unknown>>;
       };
-      expect(pairingBody.primary.origin).toBe("http://192.168.31.8:18922");
-      expect(pairingBody.primary.url).toContain("http://192.168.31.8:18922/pair/");
+      expect(pairingBody.primary.origin).toBe("http://100.83.218.96:18922");
+      expect(pairingBody.primary.url).toContain("http://100.83.218.96:18922/pair/");
       expect(pairingBody.primary.qr).toMatch(/^data:image\/png;base64,/);
       expect(pairingBody.addresses).toHaveLength(3);
       expect(pairingBody.addresses.every((address) => !("qr" in address) && !("url" in address))).toBe(true);
