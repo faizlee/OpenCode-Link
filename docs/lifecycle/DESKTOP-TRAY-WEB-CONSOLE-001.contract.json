@@ -33,7 +33,7 @@
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["src/App.tsx", "src/console", "src/navigation.ts", "server/http-app.ts", "server/runtime.ts", "server/session.ts", "scripts/tray.ps1", "scripts/package-windows.ps1", "package.json"],
-      "evidence": "Web console, QR-only session APIs, Tailscale address/QR selection, same-device preferred-origin adoption, runtime identity APIs, session rename/batch, tray Owner, packaging, and verification consumers are implemented in this branch as a candidate, not as delivery_integrated."
+      "evidence": "Web console, QR-only session APIs, Tailscale address/QR selection, same-device preferred-origin adoption, newest-rollout selection with cached-source rediscovery, runtime identity APIs, tray Owner, packaging, and verification consumers are implemented in this branch as a candidate, not as delivery_integrated."
     },
     {
       "class": "feature_node_map",
@@ -69,7 +69,7 @@
       "class": "verification_contract",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1", "scripts/OpenCodexLink.TrayIpc.Tests.ps1"],
-      "evidence": "Automated checks cover QR-only authorization, denial without a device token, disabled password POST, repeated-scan identity reuse, stable/Tailscale origin adoption, Tailscale interface classification, model-first naming, device editing, routing, style scope, build, package smoke, and Headless tray IPC. User-visible NotifyIcon/menu, real-phone model/rescan/Tailscale migration, unknown-occupant comparison, and target-machine acceptance remain."
+      "evidence": "Automated checks cover QR-only authorization, repeated-scan and cross-origin identity reuse, Tailscale classification, model-first naming, device editing, routing, and both duplicate-rollout cases: choosing the newest valid file at first read and switching a cached thread after a newer file appears. Package smoke and Headless tray IPC remain part of the gate."
     },
     {
       "class": "roadmap",
@@ -95,7 +95,7 @@
       "name": "npm test",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Vitest: 16 files, 47 tests passed, including QR-only authorization, rejection without a device credential, disabled password login, Tailscale address classification, phone-model behavior, repeated-scan identity reuse, and cross-origin adoption preserving the device ID and row count."
+      "evidence": "Vitest: 16 files, 49 tests passed, including newest valid rollout selection for duplicate thread IDs, cached-source rediscovery, QR-only authorization, Tailscale classification, phone-model behavior, repeated-scan identity reuse, and cross-origin adoption preserving the device ID and row count."
     },
     {
       "name": "npm run build",
@@ -124,8 +124,8 @@
     {
       "name": "Live local tray and browser acceptance",
       "status": "passed",
-      "command": "launch packaged candidate; inspect /api/runtime and /api/session; navigate /setup in the in-app browser at default and 390px; close the test tab; relaunch the same version; compare trusted-devices.json SHA-256",
-      "evidence": "The candidate runs from release/deployed-qr-tailscale-20260828-193855/OpenCodexLink with tray PID 62636 and service PID 73104 on build 0.1.0+20260828T113642Z. /api/session reports pairingOnly=true and unauthenticated without a device cookie; old-password POST returns 403; the phone root shows only scan instructions. The management console renders LAN, fixed-name, and Tailscale QR choices and shows http://100.83.218.96:8787 on the connection page. At 390px all five pairing controls remain visible with no horizontal overflow. Tailscale IPv4 and MagicDNS health both pass, same-version launch preserves both PIDs, legacy password is absent from the deployed .env, and trusted-devices.json remains two rows with SHA-256 85436A7D983FF6B126E314FB6279C2AB3278EF9921C3495D3F7323DB0BF6C1F1."
+      "command": "launch packaged candidate; inspect /api/runtime and /api/session; pair through the Tailscale URL at 390px; open the current task and assert latest-turn text; close the test tab and reset the viewport; delete only the temporary test device; compare trusted-devices.json SHA-256",
+      "evidence": "The latest candidate runs from release/deployed-latest-log-20260828-232933/OpenCodexLink with tray PID 74764 and service PID 74872 on build 0.1.0+20260828T152739Z. A 390px browser paired through http://100.83.218.96:8787, opened the current task, and displayed the recent mobile-staleness report, the duplicate-JSONL root-cause explanation, the user's latest '开始', and the active fix commentary. This proves the opened mobile task now follows the newest valid rollout instead of the older same-ID file. The test tab was closed, the viewport reset, and only temporary device SWwyDvKiJ2Fc-7MX was deleted; all three pre-existing device IDs remain. The replacement preserved trusted-devices.json at three rows with SHA-256 309905AC61C461B5B479CC659B1EA90C93EC665662E57067E48BDDF915495A1C. Earlier QR-only authentication, LAN/fixed-name/Tailscale choices, old-password rejection, no-overflow mobile layout, Tailscale health, and same-version ownership checks remain covered by the preceding affected evidence."
     },
     {
       "name": "git diff --check",
@@ -158,6 +158,8 @@
       "password login still enabled",
       "missing password bypasses pairing",
       "Tailscale included in mDNS broadcast",
+      "first matching rollout wins",
+      "cached old rollout never rediscovered",
       "Redline article semantics as admin UI",
       "delivery_integrated as completed"
     ],

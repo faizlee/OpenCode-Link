@@ -1,4 +1,4 @@
-import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -40,6 +40,69 @@ function record(timestamp: string, role: "user" | "assistant", turnId: string, t
 afterEach(() => clearThreadLogCache());
 
 describe("hydrateThreadFromDesktopLog", () => {
+  it("uses the newest valid rollout when a resumed thread has multiple files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codex-link-log-"));
+    const oldDirectory = join(root, "sessions", "2026", "08", "27");
+    const newDirectory = join(root, "sessions", "2026", "08", "28");
+    await mkdir(oldDirectory, { recursive: true });
+    await mkdir(newDirectory, { recursive: true });
+    const oldPath = join(oldDirectory, `rollout-old-${threadId}.jsonl`);
+    const newPath = join(newDirectory, `rollout-new-${threadId}.jsonl`);
+    const sessionMeta = JSON.stringify({ type: "session_meta", payload: { id: threadId } });
+    await writeFile(oldPath, [
+      sessionMeta,
+      record("2026-08-27T08:00:00Z", "user", "turn-old", "旧文件内容", "user-old"),
+    ].join("\n") + "\n", "utf8");
+    await writeFile(newPath, [
+      sessionMeta,
+      record("2026-08-28T08:00:00Z", "user", "turn-new", "最新文件内容", "user-new"),
+    ].join("\n") + "\n", "utf8");
+    await utimes(oldPath, new Date("2026-08-27T08:00:00Z"), new Date("2026-08-27T08:00:00Z"));
+    await utimes(newPath, new Date("2026-08-28T08:00:00Z"), new Date("2026-08-28T08:00:00Z"));
+
+    const result = await hydrateThreadFromDesktopLog(baseThread(), { codexHome: root });
+
+    expect(result.turns).toHaveLength(1);
+    expect(result.turns[0].items[0].content).toEqual([{ type: "text", text: "最新文件内容" }]);
+  });
+
+  it("switches a cached thread to a newer rollout after rediscovery", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codex-link-log-"));
+    const directory = join(root, "sessions");
+    await mkdir(directory, { recursive: true });
+    const oldPath = join(directory, `rollout-old-${threadId}.jsonl`);
+    const newPath = join(directory, `rollout-new-${threadId}.jsonl`);
+    const sessionMeta = JSON.stringify({ type: "session_meta", payload: { id: threadId } });
+    await writeFile(oldPath, [
+      sessionMeta,
+      record("2026-08-27T08:00:00Z", "user", "turn-old", "缓存的旧内容", "user-old"),
+    ].join("\n") + "\n", "utf8");
+    await utimes(oldPath, new Date("2026-08-27T08:00:00Z"), new Date("2026-08-27T08:00:00Z"));
+    let now = 1_000;
+
+    const first = await hydrateThreadFromDesktopLog(baseThread(), {
+      codexHome: root,
+      now: () => now,
+      rediscoveryIntervalMs: 100,
+    });
+    expect(first.turns[0].items[0].content).toEqual([{ type: "text", text: "缓存的旧内容" }]);
+
+    await writeFile(newPath, [
+      sessionMeta,
+      record("2026-08-28T08:00:00Z", "user", "turn-new", "切换后的最新内容", "user-new"),
+    ].join("\n") + "\n", "utf8");
+    await utimes(newPath, new Date("2026-08-28T08:00:00Z"), new Date("2026-08-28T08:00:00Z"));
+    now += 101;
+
+    const second = await hydrateThreadFromDesktopLog(baseThread(), {
+      codexHome: root,
+      now: () => now,
+      rediscoveryIntervalMs: 100,
+    });
+    expect(second.turns).toHaveLength(1);
+    expect(second.turns[0].items[0].content).toEqual([{ type: "text", text: "切换后的最新内容" }]);
+  });
+
   it("reads current desktop messages and then follows appended records", async () => {
     const root = await mkdtemp(join(tmpdir(), "codex-link-log-"));
     const directory = join(root, "sessions", "2026", "08", "26");

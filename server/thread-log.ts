@@ -15,14 +15,18 @@ interface CachedHistory {
   turns: Map<string, Turn>;
   turnOrder: string[];
   updatedAt: number;
+  lastDiscoveryAt: number;
 }
 
 interface ReadOptions {
   codexHome?: string;
+  now?: () => number;
+  rediscoveryIntervalMs?: number;
 }
 
 const cache = new Map<string, CachedHistory>();
 const inflight = new Map<string, Promise<CachedHistory | null>>();
+const ROLLOUT_REDISCOVERY_INTERVAL_MS = 15_000;
 
 function defaultCodexHome() {
   return process.env.CODEX_HOME || join(homedir(), ".codex");
@@ -71,15 +75,20 @@ async function locateRollout(threadId: string, codexHome: string) {
     ...await findRollout(join(codexHome, "archived_sessions"), threadId),
   ];
 
-  for (const path of candidates) {
+  const matches = await Promise.all(candidates.map(async (path) => {
     try {
       const first = JSON.parse(await firstJsonLine(path)) as { type?: string; payload?: { id?: string } };
-      if (first.type === "session_meta" && first.payload?.id === threadId) return path;
+      if (first.type !== "session_meta" || first.payload?.id !== threadId) return null;
+      return { path, modifiedAt: (await stat(path)).mtimeMs };
     } catch {
       // Ignore unrelated or partially-written candidates.
+      return null;
     }
-  }
-  return null;
+  }));
+
+  return matches
+    .filter((match): match is { path: string; modifiedAt: number } => Boolean(match))
+    .sort((left, right) => right.modifiedAt - left.modifiedAt || right.path.localeCompare(left.path))[0]?.path ?? null;
 }
 
 function cleanUserText(input: string) {
@@ -212,7 +221,21 @@ async function readNewBytes(history: CachedHistory) {
   return history;
 }
 
-async function loadHistory(threadId: string, codexHome: string) {
+function emptyHistory(path: string, discoveredAt: number): CachedHistory {
+  return {
+    path,
+    offset: 0,
+    remainder: "",
+    turns: new Map(),
+    turnOrder: [],
+    updatedAt: 0,
+    lastDiscoveryAt: discoveredAt,
+  };
+}
+
+async function loadHistory(threadId: string, codexHome: string, options: ReadOptions) {
+  const now = options.now?.() ?? Date.now();
+  const rediscoveryIntervalMs = options.rediscoveryIntervalMs ?? ROLLOUT_REDISCOVERY_INTERVAL_MS;
   let history = cache.get(threadId);
   if (history) {
     try {
@@ -222,10 +245,19 @@ async function loadHistory(threadId: string, codexHome: string) {
       history = undefined;
     }
   }
+  if (history && now - history.lastDiscoveryAt >= rediscoveryIntervalMs) {
+    const latestPath = await locateRollout(threadId, codexHome);
+    if (latestPath && latestPath !== history.path) {
+      history = emptyHistory(latestPath, now);
+      cache.set(threadId, history);
+    } else {
+      history.lastDiscoveryAt = now;
+    }
+  }
   if (!history) {
     const path = await locateRollout(threadId, codexHome);
     if (!path) return null;
-    history = { path, offset: 0, remainder: "", turns: new Map(), turnOrder: [], updatedAt: 0 };
+    history = emptyHistory(path, now);
     cache.set(threadId, history);
   }
   return readNewBytes(history);
@@ -236,7 +268,7 @@ export async function hydrateThreadFromDesktopLog(thread: CodexThread, options: 
   const key = `${codexHome}\0${thread.id}`;
   let pending = inflight.get(key);
   if (!pending) {
-    pending = loadHistory(thread.id, codexHome).finally(() => inflight.delete(key));
+    pending = loadHistory(thread.id, codexHome, options).finally(() => inflight.delete(key));
     inflight.set(key, pending);
   }
   const history = await pending;
