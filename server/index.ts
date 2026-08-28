@@ -179,7 +179,6 @@ httpServer.listen(port, host, () => {
   writeRuntimeRecord(identity);
   console.log(`Codex PWA bridge listening on http://${host}:${port}`);
   void lanDiscovery.start(listLanAddresses(port), host);
-  if (!sessions.authRequired) console.warn("CODEX_PWA_PASSWORD is not set. Keep the bridge bound to localhost.");
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

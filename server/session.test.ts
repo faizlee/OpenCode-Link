@@ -40,14 +40,21 @@ function requestWithCookie(cookie = "", userAgent = "Android Test", clientHintMo
 }
 
 describe("SessionStore", () => {
+  it("requires a trusted-device token for every unpaired request", () => {
+    const store = new SessionStore(devicePath());
+
+    expect(store.authRequired).toBe(true);
+    expect(store.isAuthenticated(requestWithCookie())).toBe(false);
+  });
+
   it("keeps a trusted device signed in after the server store is recreated", () => {
     const path = devicePath();
-    const firstStore = new SessionStore("test-password", path);
+    const firstStore = new SessionStore(path);
     const { response, headers } = responseRecorder();
     firstStore.create(requestWithCookie(), response, false);
 
     const cookie = headers.get("set-cookie")?.split(";", 1)[0] ?? "";
-    const restartedStore = new SessionStore("test-password", path);
+    const restartedStore = new SessionStore(path);
 
     expect(restartedStore.isAuthenticated(requestWithCookie(cookie))).toBe(true);
     expect(restartedStore.listDevices()).toMatchObject([{ name: "Android 手机" }]);
@@ -57,17 +64,17 @@ describe("SessionStore", () => {
 
   it("rejects forged tokens and tokens missing from the trusted-device registry", () => {
     const path = devicePath();
-    const store = new SessionStore("test-password", path);
+    const store = new SessionStore(path);
     const { response, headers } = responseRecorder();
     store.create(requestWithCookie(), response, false);
     const cookie = headers.get("set-cookie")?.split(";", 1)[0] ?? "";
 
     expect(store.isAuthenticated(requestWithCookie(`${cookie}x`))).toBe(false);
-    expect(new SessionStore("test-password", devicePath()).isAuthenticated(requestWithCookie(cookie))).toBe(false);
+    expect(new SessionStore(devicePath()).isAuthenticated(requestWithCookie(cookie))).toBe(false);
   });
 
   it("adopts the same trusted-device identity on another origin without adding a row", () => {
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
     const created = responseRecorder();
     store.create(requestWithCookie(), created.response, false);
     const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -82,7 +89,7 @@ describe("SessionStore", () => {
   });
 
   it("refreshes a repeated scan without adding a trusted-device row", () => {
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
     const created = responseRecorder();
     store.create(requestWithCookie(), created.response, false);
     const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -94,7 +101,7 @@ describe("SessionStore", () => {
 
   it("uses the phone model as the default device name when the browser exposes it", () => {
     const androidUa = "Mozilla/5.0 (Linux; Android 14; SM-S9280 Build/UP1A.231005.007) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36";
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
 
     store.create(requestWithCookie("", androidUa), responseRecorder().response, false);
     store.create(requestWithCookie("", "Mozilla/5.0 (Linux; Android 10; K)", "23127PN0CC"), responseRecorder().response, false);
@@ -104,7 +111,7 @@ describe("SessionStore", () => {
   });
 
   it("upgrades a generic Android name on the next visit but preserves a user rename", () => {
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
     const created = responseRecorder();
     store.create(requestWithCookie(), created.response, false);
     const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -120,7 +127,7 @@ describe("SessionStore", () => {
   });
 
   it("revokes one trusted device without affecting another", () => {
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
     const first = responseRecorder();
     const second = responseRecorder();
     store.create(requestWithCookie("", "iPhone"), first.response, false);
@@ -133,7 +140,7 @@ describe("SessionStore", () => {
   });
 
   it("logout revokes the current device and clears its browser cookie", () => {
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
     const created = responseRecorder();
     store.create(requestWithCookie(), created.response, false);
     const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -150,7 +157,7 @@ describe("SessionStore", () => {
 
   it("renames a device without changing id, token, or adding a row", () => {
     const path = devicePath();
-    const store = new SessionStore("test-password", path);
+    const store = new SessionStore(path);
     const created = responseRecorder();
     store.create(requestWithCookie(), created.response, false);
     const cookie = created.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -168,7 +175,7 @@ describe("SessionStore", () => {
   });
 
   it("batch-revokes only the selected device ids", () => {
-    const store = new SessionStore("test-password", devicePath());
+    const store = new SessionStore(devicePath());
     store.create(requestWithCookie("", "iPhone"), responseRecorder().response, false);
     store.create(requestWithCookie("", "Android"), responseRecorder().response, false);
     store.create(requestWithCookie("", "Windows"), responseRecorder().response, false);
@@ -181,7 +188,7 @@ describe("SessionStore", () => {
   it("does not overwrite a corrupt device registry with an empty table", () => {
     const path = devicePath();
     writeFileSync(path, "{not-json", "utf8");
-    const store = new SessionStore("test-password", path);
+    const store = new SessionStore(path);
 
     expect(store.loadError).toBe(true);
     expect(store.listDevices()).toEqual([]);

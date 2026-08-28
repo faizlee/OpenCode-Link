@@ -9,7 +9,6 @@ import {
   ImagePlus,
   Download,
   LoaderCircle,
-  LockKeyhole,
   LogOut,
   MessageSquareText,
   Paperclip,
@@ -35,6 +34,7 @@ interface SessionState {
   loading: boolean;
   authRequired: boolean;
   authenticated: boolean;
+  pairingOnly?: boolean;
 }
 
 interface InstallPromptEvent extends Event {
@@ -88,48 +88,14 @@ function titleFor(thread: CodexThread) {
   return thread.name?.trim() || thread.preview.trim().split("\n")[0] || "未命名线程";
 }
 
-function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (!response.ok) throw new Error((await response.json()).error ?? "登录失败");
-      onAuthenticated();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-
+function PairingRequiredScreen() {
   return (
     <main className="login-shell">
       <section className="login-card">
         <div className="brand-mark"><Smartphone size={25} /><span /><Server size={25} /></div>
-        <p className="eyebrow">你的电脑</p>
-        <h1>继续使用 Codex</h1>
-        <p className="muted">手机只负责交互，任务仍在电脑上运行。</p>
-        <form onSubmit={submit}>
-          <label htmlFor="password">访问密码</label>
-          <div className="password-field">
-            <LockKeyhole size={18} />
-            <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" autoFocus />
-          </div>
-          {error && <p className="form-error">{error}</p>}
-          <button className="primary-button" disabled={busy || !password}>
-            {busy ? <LoaderCircle className="spin" size={18} /> : "连接电脑"}
-          </button>
-        </form>
+        <p className="eyebrow">等待设备配对</p>
+        <h1>请扫描电脑上的二维码</h1>
+        <p className="muted">在电脑托盘打开 OpenCodex Link，点击“添加手机”并扫码。配对完成后，这台设备以后直接打开即可，不再需要密码。</p>
       </section>
     </main>
   );
@@ -200,23 +166,36 @@ function InstallShortcut() {
   );
 }
 
-function StableAddressAdopter({ authenticated }: { authenticated: boolean }) {
+function isTailscaleHost(hostname: string) {
+  const parts = hostname.split(".").map(Number);
+  return parts.length === 4 && parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127;
+}
+
+function PreferredAddressAdopter({ authenticated }: { authenticated: boolean }) {
   useEffect(() => {
-    if (!authenticated || !/^\d{1,3}(\.\d{1,3}){3}$/.test(window.location.hostname)) return;
+    if (!authenticated || isTailscaleHost(window.location.hostname)) return;
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 3_000);
+    const timeout = window.setTimeout(() => controller.abort(), 6_000);
 
     const adopt = async () => {
       try {
-        const response = await fetch("/api/stable-link", { method: "POST", cache: "no-store", signal: controller.signal });
+        const response = await fetch("/api/preferred-links", { method: "POST", cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
-        const link = await response.json() as { origin: string; url: string };
-        const health = await fetch(`${link.origin}/api/health`, { cache: "no-store", signal: controller.signal });
-        if (!health.ok || !(await health.json()).ok) return;
-        window.location.replace(link.url);
+        const data = await response.json() as { links: Array<{ origin: string; url: string }> };
+        for (const link of data.links) {
+          if (link.origin === window.location.origin) continue;
+          try {
+            const health = await fetch(`${link.origin}/api/health`, { cache: "no-store", signal: controller.signal });
+            if (!health.ok || !(await health.json()).ok) continue;
+            window.location.replace(link.url);
+            return;
+          } catch {
+            // Try the next preferred address. Tailscale may not be enabled on
+            // this phone, while the local fixed name can still be available.
+          }
+        }
       } catch {
-        // This phone, VPN, browser, or router cannot resolve mDNS. Remaining on
-        // the already-working IP origin is the intentional zero-friction fallback.
+        // Remaining on the already-working origin is the intentional fallback.
       }
     };
 
@@ -787,9 +766,9 @@ export default function App() {
 
   if (setupMode) return <ConsoleApp />;
   if (session.loading) return <div className="full-loader"><LoaderCircle className="spin" /><p>正在连接</p></div>;
-  if (!session.authenticated) return <LoginScreen onAuthenticated={() => setSession((current) => ({ ...current, authenticated: true }))} />;
-  const stableAddressAdopter = <StableAddressAdopter authenticated={session.authenticated} />;
-  if (opening) return <>{stableAddressAdopter}<div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div></>;
-  if (selected) return <>{stableAddressAdopter}<ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} deliveryNotice={deliveryNotice} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} /></>;
-  return <>{stableAddressAdopter}<ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} /></>;
+  if (!session.authenticated) return <PairingRequiredScreen />;
+  const preferredAddressAdopter = <PreferredAddressAdopter authenticated={session.authenticated} />;
+  if (opening) return <>{preferredAddressAdopter}<div className="full-loader"><LoaderCircle className="spin" /><p>正在接入线程</p></div></>;
+  if (selected) return <>{preferredAddressAdopter}<ChatView key={selected.thread.id} response={selected} requests={threadRequests} sending={sending} connection={connection} error={error} deliveryNotice={deliveryNotice} onBack={backToList} onSend={sendMessage} onStop={stopTurn} onResolve={resolveRequest} /></>;
+  return <>{preferredAddressAdopter}<ThreadList threads={threads} loading={loading} search={search} connection={connection} error={error} onSearch={setSearch} onRefresh={() => void loadThreads()} onOpen={openThread} onLogout={logout} /></>;
 }

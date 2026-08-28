@@ -28,6 +28,7 @@ interface ConnectionState {
   appPort?: number;
   usingIpFallback?: boolean;
   lanAddresses?: Array<{ name: string; address: string; origin: string }>;
+  tailscaleAddresses?: Array<{ name: string; address: string; origin: string; tailscale: true }>;
 }
 
 interface ConsoleDevice {
@@ -47,6 +48,7 @@ interface PairingAddress {
   url: string;
   qr: string;
   stable?: boolean;
+  tailscale?: boolean;
 }
 
 interface SettingsState {
@@ -82,6 +84,7 @@ export default function ConsoleApp() {
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingLoading, setPairingLoading] = useState(false);
   const [pairing, setPairing] = useState<{ expiresAt: number; addresses: PairingAddress[] } | null>(null);
+  const [pairingOrigin, setPairingOrigin] = useState("");
   const [now, setNow] = useState(Date.now());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState<Record<string, string>>({});
@@ -150,6 +153,10 @@ export default function ConsoleApp() {
       const data = await response.json() as { error?: string; expiresAt: number; addresses: PairingAddress[] };
       if (!response.ok) throw new Error(data.error ?? "无法生成二维码");
       setPairing(data);
+      const preferred = data.addresses.find((address) => !address.stable && !address.tailscale)
+        ?? data.addresses.find((address) => address.stable)
+        ?? data.addresses[0];
+      setPairingOrigin(preferred?.origin ?? "");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -227,7 +234,7 @@ export default function ConsoleApp() {
   }
 
   const remainingMs = pairing ? pairing.expiresAt - now : 0;
-  const primaryQr = pairing?.addresses.find((address) => !address.stable) ?? pairing?.addresses[0];
+  const primaryQr = pairing?.addresses.find((address) => address.origin === pairingOrigin) ?? pairing?.addresses[0];
   const versionMismatch = Boolean(runtime.tray?.version && runtime.version && runtime.tray.version !== runtime.version);
   const recentDevices = devices.filter((device) => !isUnusedDevice(device.lastSeenAt)).slice(0, 3);
   const unusedDevices = devices.filter((device) => isUnusedDevice(device.lastSeenAt));
@@ -309,7 +316,26 @@ export default function ConsoleApp() {
       {pairingLoading && <p className="console-muted">正在生成二维码</p>}
       {primaryQr && (
         <>
+          {pairing && pairing.addresses.length > 1 && (
+            <div className="console-actions" aria-label="选择配对网络">
+              {pairing.addresses.map((address) => (
+                <button
+                  key={address.origin}
+                  type="button"
+                  className={`console-button ${address.origin === primaryQr.origin ? "" : "secondary"}`}
+                  onClick={() => setPairingOrigin(address.origin)}
+                >
+                  {address.tailscale ? "Tailscale" : address.stable ? "固定名称" : "局域网"}
+                </button>
+              ))}
+            </div>
+          )}
           <img className="console-qr" src={primaryQr.qr} alt="手机配对二维码" />
+          <p className="console-muted">
+            {primaryQr.tailscale
+              ? "手机连接同一个 Tailscale 网络后扫描。完成一次配对，以后可直接使用这个远程入口。"
+              : "手机与电脑在同一局域网时扫描。若手机已启用 Tailscale，授权后会自动沿用同一设备身份切换到远程入口。"}
+          </p>
           <p className="console-muted">{remainingMs > 0 ? `剩余 ${Math.ceil(remainingMs / 1000)} 秒` : "二维码已过期，请刷新。"}</p>
           <div className="console-actions">
             <button className="console-button secondary" onClick={() => void issuePairing()}>刷新二维码</button>
@@ -320,7 +346,7 @@ export default function ConsoleApp() {
             <dl className="console-rows">
               {pairing?.addresses.map((address) => (
                 <div className="console-row" key={address.address}>
-                  <dt>{address.stable ? "固定名称" : address.name}</dt>
+                  <dt>{address.tailscale ? "Tailscale" : address.stable ? "固定名称" : address.name}</dt>
                   <dd>{address.origin}</dd>
                 </div>
               ))}
@@ -355,6 +381,7 @@ export default function ConsoleApp() {
       <dl className="console-rows">
         <div className="console-row"><dt>固定名称</dt><dd>{connection.stableAvailable ? connection.stableOrigin : "当前不可用，正在使用 IP 备用入口"}</dd></div>
         <div className="console-row"><dt>局域网地址</dt><dd>{connection.lanAddresses?.[0]?.origin ?? "未发现物理网卡地址"}</dd></div>
+        <div className="console-row"><dt>Tailscale 入口</dt><dd>{connection.tailscaleAddresses?.[0]?.origin ?? "未发现正在运行的 Tailscale"}</dd></div>
         <div className="console-row"><dt>推荐入口</dt><dd>{connection.recommendedOrigin ?? "暂无"}</dd></div>
         <div className="console-row"><dt>端口</dt><dd>{connection.defaultPortRedirect ? "80 转发可用" : `回退到 ${connection.appPort ?? runtime.port ?? ""}`}</dd></div>
       </dl>
@@ -367,6 +394,9 @@ export default function ConsoleApp() {
         <dl className="console-rows">
           {(connection.lanAddresses ?? []).map((address) => (
             <div className="console-row" key={address.address}><dt>{address.name}</dt><dd>{address.origin}</dd></div>
+          ))}
+          {(connection.tailscaleAddresses ?? []).map((address) => (
+            <div className="console-row" key={address.address}><dt>Tailscale</dt><dd>{address.origin}</dd></div>
           ))}
         </dl>
       </details>

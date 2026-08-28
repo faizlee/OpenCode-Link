@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import QRCode from "qrcode";
 import { AttachmentUploadError, parseAttachmentMessage } from "./attachment-upload.js";
 import type { StableLanAddress } from "./lan-discovery.js";
-import { listLanAddresses } from "./network.js";
+import { listLanAddresses, listTailscaleAddresses } from "./network.js";
 import type { PairingStore } from "./pairing.js";
 import { queueMessage } from "./queue-message.js";
 import { publicHealth, publicRuntime, publicSettings, type RuntimeIdentity } from "./runtime.js";
@@ -42,6 +42,7 @@ function requireDeviceStore(sessions: SessionStore, response: Response) {
 
 export async function connectionStatus(port: number, lanDiscovery: ConsoleLanDiscovery) {
   const lanAddresses = listLanAddresses(port);
+  const tailscaleAddresses = listTailscaleAddresses(port);
   const stable = await lanDiscovery.address();
   const recommended = stable ?? lanAddresses[0] ?? null;
   return {
@@ -49,6 +50,7 @@ export async function connectionStatus(port: number, lanDiscovery: ConsoleLanDis
     stableOrigin: stable?.origin ?? null,
     stableAvailable: Boolean(stable),
     lanAddresses,
+    tailscaleAddresses,
     recommendedOrigin: recommended?.origin ?? null,
     defaultPortRedirect: lanDiscovery.defaultPortReady,
     appPort: port,
@@ -72,17 +74,12 @@ export function createBridgeApp(services: BridgeAppServices): Express {
 
   app.get("/api/session", (request, response) => {
     const authenticated = sessions.isAuthenticated(request);
-    if (authenticated && sessions.authRequired) sessions.refresh(request, response, request.secure);
-    response.json({ authRequired: sessions.authRequired, authenticated });
+    if (authenticated) sessions.refresh(request, response, request.secure);
+    response.json({ authRequired: true, authenticated, pairingOnly: true });
   });
 
-  app.post("/api/session", (request, response) => {
-    if (!sessions.authenticate(String(request.body?.password ?? ""))) {
-      response.status(401).json({ error: "密码不正确" });
-      return;
-    }
-    sessions.create(request, response, request.secure);
-    response.json({ ok: true });
+  app.post("/api/session", (_request, response) => {
+    response.status(403).json({ error: "密码登录已停用，请在电脑管理台生成二维码并扫码配对" });
   });
 
   app.delete("/api/session", (request, response) => {
@@ -158,12 +155,39 @@ export function createBridgeApp(services: BridgeAppServices): Express {
       return;
     }
     const sessionToken = sessions.sessionToken(request);
-    if (sessions.authRequired && !sessionToken) {
+    if (!sessionToken) {
       response.status(401).json({ error: "当前设备身份已失效，请重新配对" });
       return;
     }
     const ticket = pairing.issue(sessionToken ? { sessionToken } : {});
     response.json({ origin: stableAddress.origin, url: `${stableAddress.origin}/pair/${ticket.token}` });
+  });
+
+  app.post("/api/preferred-links", async (request, response) => {
+    response.setHeader("Cache-Control", "no-store");
+    if (!sessions.isAuthenticated(request)) {
+      response.status(401).json({ error: "需要先完成设备配对" });
+      return;
+    }
+    const sessionToken = sessions.sessionToken(request);
+    if (!sessionToken) {
+      response.status(401).json({ error: "当前设备身份已失效，请重新配对" });
+      return;
+    }
+
+    const tailscale = listTailscaleAddresses(identity.port);
+    const stable = await lanDiscovery.address();
+    const targets = [...tailscale, ...(stable ? [stable] : [])];
+    const links = targets.map((target) => {
+      const ticket = pairing.issue({ sessionToken });
+      return {
+        origin: target.origin,
+        url: `${target.origin}/pair/${ticket.token}`,
+        tailscale: "tailscale" in target && target.tailscale === true,
+        stable: "stable" in target && target.stable === true,
+      };
+    });
+    response.json({ links });
   });
 
   app.get("/api/devices", (request, response) => {
@@ -209,8 +233,10 @@ export function createBridgeApp(services: BridgeAppServices): Express {
 
     const ticket = pairing.issue();
     const lanAddresses = listLanAddresses(identity.port);
+    const tailscaleAddresses = listTailscaleAddresses(identity.port);
     const stableAddress = await lanDiscovery.address();
-    const addresses = await Promise.all((stableAddress ? [...lanAddresses, stableAddress] : lanAddresses).map(async (entry) => {
+    const entries = [...lanAddresses, ...(stableAddress ? [stableAddress] : []), ...tailscaleAddresses];
+    const addresses = await Promise.all(entries.map(async (entry) => {
       const url = `${entry.origin}/pair/${ticket.token}`;
       return {
         ...entry,

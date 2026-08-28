@@ -50,7 +50,7 @@ function deviceRequest(userAgent: string) {
 describe("bridge HTTP console APIs", () => {
   it("reuses the same trusted-device row when the phone scans again", async () => {
     const dataRoot = tempDataRoot();
-    const sessions = new SessionStore("test-password", join(dataRoot, "trusted-devices.json"));
+    const sessions = new SessionStore(join(dataRoot, "trusted-devices.json"));
     const pairing = new PairingStore();
     const identity = createRuntimeIdentity({ dataRoot, port: 18922, installRoot: join(dataRoot, "install") });
     const app = createBridgeApp({
@@ -60,12 +60,27 @@ describe("bridge HTTP console APIs", () => {
       appServerReady: () => true,
       lanDiscovery: {
         defaultPortReady: false,
-        address: async () => null,
+        address: async () => ({
+          name: "固定名称",
+          address: "opencodexlink.local",
+          origin: "http://opencodexlink.local:18922",
+          stable: true as const,
+        }),
       },
     });
     const listener = await listenApp(app);
 
     try {
+      const unpairedSession = await (await fetch(`${listener.origin}/api/session`)).json() as Record<string, unknown>;
+      expect(unpairedSession).toMatchObject({ authRequired: true, authenticated: false, pairingOnly: true });
+      const passwordLogin = await fetch(`${listener.origin}/api/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: "test-password" }),
+      });
+      expect(passwordLogin.status).toBe(403);
+      expect(sessions.listDevices()).toHaveLength(0);
+
       const firstTicket = pairing.issue();
       const firstScan = await fetch(`${listener.origin}/pair/${firstTicket.token}`, {
         redirect: "manual",
@@ -92,6 +107,19 @@ describe("bridge HTTP console APIs", () => {
       expect(secondScan.status).toBe(303);
       expect(sessions.listDevices()).toHaveLength(1);
       expect(sessions.listDevices()[0].id).toBe(firstDevice.id);
+
+      const pairedSession = await (await fetch(`${listener.origin}/api/session`, { headers: { Cookie: cookie } })).json() as Record<string, unknown>;
+      expect(pairedSession).toMatchObject({ authRequired: true, authenticated: true, pairingOnly: true });
+
+      const preferred = await fetch(`${listener.origin}/api/preferred-links`, { method: "POST", headers: { Cookie: cookie } });
+      expect(preferred.status).toBe(200);
+      const preferredBody = await preferred.json() as { links: Array<{ url: string; stable: boolean }> };
+      const stableLink = preferredBody.links.find((link) => link.stable);
+      expect(stableLink).toBeTruthy();
+      const adopted = await fetch(`${listener.origin}${new URL(stableLink?.url ?? "").pathname}`, { redirect: "manual" });
+      expect(adopted.status).toBe(303);
+      expect(sessions.listDevices()).toHaveLength(1);
+      expect(sessions.listDevices()[0].id).toBe(firstDevice.id);
     } finally {
       await listener.close();
     }
@@ -108,7 +136,7 @@ describe("bridge HTTP console APIs", () => {
       keepRunningWhenBrowserCloses: true,
     }), "utf8");
 
-    const sessions = new SessionStore("test-password", join(dataRoot, "trusted-devices.json"));
+    const sessions = new SessionStore(join(dataRoot, "trusted-devices.json"));
     const pairing = new PairingStore();
     const existingTicket = pairing.issue({ now: 1_000, ttlMs: 60_000 });
     const created = {

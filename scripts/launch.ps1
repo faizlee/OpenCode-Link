@@ -14,13 +14,6 @@ Set-Location -LiteralPath $projectRoot
 Import-Module -Force (Join-Path $PSScriptRoot 'OpenCodexLink.Identity.psm1')
 Import-Module -Force (Join-Path $PSScriptRoot 'OpenCodexLink.Service.psm1')
 
-function New-AccessSecret {
-    $bytes = New-Object byte[] 24
-    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
-    try { $generator.GetBytes($bytes) } finally { $generator.Dispose() }
-    return [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-}
-
 function Ensure-EnvironmentFile {
     $environmentPath = Join-Path $projectRoot '.env'
     $content = @()
@@ -34,14 +27,12 @@ function Ensure-EnvironmentFile {
         return $Fallback
     }
 
-    $password = Read-ManagedValue 'CODEX_PWA_PASSWORD' (New-AccessSecret)
     $configuredPort = Read-ManagedValue 'CODEX_PWA_PORT' '8787'
     $lanName = Read-ManagedValue 'CODEX_PWA_LAN_NAME' 'opencodexlink'
     $unmanaged = @($content | Where-Object { $_ -notmatch '^CODEX_PWA_(PASSWORD|HOST|PORT|LAN_NAME)=' })
 
     @(
         $unmanaged
-        "CODEX_PWA_PASSWORD=$password"
         'CODEX_PWA_HOST=0.0.0.0'
         "CODEX_PWA_PORT=$configuredPort"
         "CODEX_PWA_LAN_NAME=$lanName"

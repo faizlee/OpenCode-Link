@@ -57,13 +57,11 @@ function Start-OpenCodexLinkHeadlessTrayProcess {
     $previous = @{
         Isolation = $env:CODEX_PWA_TEST_ISOLATION
         Host = $env:CODEX_PWA_HOST
-        Password = $env:CODEX_PWA_PASSWORD
         DataDir = $env:CODEX_PWA_DATA_DIR
         Port = $env:CODEX_PWA_PORT
     }
     $env:CODEX_PWA_TEST_ISOLATION = '1'
     $env:CODEX_PWA_HOST = '127.0.0.1'
-    $env:CODEX_PWA_PASSWORD = 'tray-ipc-isolated'
     $env:CODEX_PWA_DATA_DIR = $DataDir
     $env:CODEX_PWA_PORT = [string]$Port
     try {
@@ -80,7 +78,6 @@ function Start-OpenCodexLinkHeadlessTrayProcess {
     } finally {
         $env:CODEX_PWA_TEST_ISOLATION = $previous.Isolation
         if ($null -eq $previous.Host) { Remove-Item Env:\CODEX_PWA_HOST -ErrorAction SilentlyContinue } else { $env:CODEX_PWA_HOST = $previous.Host }
-        if ($null -eq $previous.Password) { Remove-Item Env:\CODEX_PWA_PASSWORD -ErrorAction SilentlyContinue } else { $env:CODEX_PWA_PASSWORD = $previous.Password }
         if ($null -eq $previous.DataDir) { Remove-Item Env:\CODEX_PWA_DATA_DIR -ErrorAction SilentlyContinue } else { $env:CODEX_PWA_DATA_DIR = $previous.DataDir }
         if ($null -eq $previous.Port) { Remove-Item Env:\CODEX_PWA_PORT -ErrorAction SilentlyContinue } else { $env:CODEX_PWA_PORT = $previous.Port }
     }

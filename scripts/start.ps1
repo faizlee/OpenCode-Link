@@ -1,5 +1,4 @@
 param(
-    [string]$Password = $env:CODEX_PWA_PASSWORD,
     [string]$ListenAddress = $env:CODEX_PWA_HOST,
     [int]$Port = 0,
     [string]$DataDir = ''
@@ -10,20 +9,6 @@ Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
-if (-not $Password -and (Test-Path -LiteralPath '.env')) {
-    $passwordLine = Get-Content -LiteralPath '.env' |
-        Where-Object { $_ -match '^\s*CODEX_PWA_PASSWORD\s*=' } |
-        Select-Object -First 1
-    if ($passwordLine) {
-        $Password = ($passwordLine -split '=', 2)[1].Trim().Trim('"').Trim("'")
-    }
-}
-
-if (-not $Password) {
-    throw 'Set CODEX_PWA_PASSWORD or pass -Password.'
-}
-
-$env:CODEX_PWA_PASSWORD = $Password
 if ($ListenAddress) {
     $env:CODEX_PWA_HOST = $ListenAddress
 }

@@ -60,7 +60,6 @@ try {
     $psi.EnvironmentVariables['CODEX_PWA_DATA_DIR'] = $dataRoot
     $psi.EnvironmentVariables['CODEX_PWA_PORT'] = [string]$testPort
     $psi.EnvironmentVariables['CODEX_PWA_HOST'] = '127.0.0.1'
-    $psi.EnvironmentVariables['CODEX_PWA_PASSWORD'] = 'package-smoke-only'
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo = $psi
     [void]$proc.Start()

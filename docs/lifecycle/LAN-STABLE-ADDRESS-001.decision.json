@@ -11,25 +11,25 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines reliable first-scan access, automatic stable-name adoption with the same trusted-device identity, desktop-side port handling, and silent IP fallback behavior."
+      "evidence": "README defines reliable first-scan access, automatic stable-name and Tailscale adoption with the same trusted-device identity, desktop-side port handling, and silent fallback behavior."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "Structured decision records the confirmed zero-configuration LAN name and explicit external-network deferrals."
+      "evidence": "Structured decision records the zero-configuration LAN name, physical-only mDNS boundary, explicit Tailscale direct entry, and public-internet deferral."
     },
     {
       "class": "conflict_audit",
       "status": "synced",
-      "paths": ["docs/product-decisions.json", "README.md"],
-      "evidence": "Prior address-change wording now distinguishes fixed-name access from IP fallback access."
+      "paths": ["docs/product-decisions.json", "README.md", "server/network.ts"],
+      "evidence": "Tailscale remains excluded from the physical LAN and mDNS list while being separately recognized only on a Tailscale adapter inside 100.64.0.0/10."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
-      "paths": ["server/lan-discovery.ts", "server/index.ts", "server/session.ts", "server/pairing.ts", "server/lan-discovery.test.ts", "server/session.test.ts", "src/App.tsx", "scripts/launch.ps1", ".env.example"],
-      "evidence": "Implementation commits 3c97bac and 0ffa34c restrict mDNS advertisement to physical LAN interfaces, redirect port 80 automatically, use a concrete IP for first pairing, and adopt the stable origin with the same trusted-device identity after a successful client probe."
+      "paths": ["server/lan-discovery.ts", "server/index.ts", "server/network.ts", "server/http-app.ts", "server/session.ts", "server/pairing.ts", "server/network.test.ts", "server/session.test.ts", "server/http-app.test.ts", "src/App.tsx", "src/console/ConsoleApp.tsx", "scripts/launch.ps1", ".env.example"],
+      "evidence": "The current branch keeps mDNS on physical LAN interfaces, redirects port 80, adds a separate Tailscale address and QR, and adopts stable or reachable Tailscale origins with the same trusted-device identity after a successful client probe."
     }
   ],
   "checks": [
@@ -37,13 +37,13 @@
       "name": "TypeScript typecheck",
       "status": "passed",
       "command": "npm run typecheck",
-      "evidence": "Server and client typechecks passed on 2026-08-27 against implementation commit 0ffa34c."
+      "evidence": "Server and client typechecks passed on 2026-08-28 with separate physical-LAN and Tailscale routes."
     },
     {
       "name": "Unit tests",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Twelve test files and thirty-three tests passed, including LAN-name normalization, physical-interface selection, default-port fallback, and stable-origin identity adoption coverage."
+      "evidence": "Sixteen test files and forty-seven tests passed, including LAN-name normalization, physical-interface selection, Tailscale CGNAT classification, password-free unpaired rejection, and cross-origin identity adoption coverage."
     },
     {
       "name": "Current-host redirect probe",
@@ -56,19 +56,25 @@
       "status": "passed",
       "command": "pair on IP session -> request stable-link -> adopt from fresh origin session -> authenticate",
       "evidence": "A fresh-origin browser session adopted the existing server-held trusted-device token, authenticated successfully, and left the device count unchanged at 11 before temporary-device cleanup on 2026-08-27."
+    },
+    {
+      "name": "Deployed Tailscale direct-entry probe",
+      "status": "passed",
+      "command": "inspect /api/connection and /api/pairing; GET Tailscale IPv4 and MagicDNS /api/health",
+      "evidence": "The deployed candidate exposes http://100.83.218.96:8787 as a separate Tailscale connection and QR option. Both that IPv4 URL and http://faiz.tail84f8ca.ts.net:8787 returned the current healthy build 0.1.0+20260828T113642Z, while physical LAN remains a separate list. Real-phone Tailnet migration remains pending."
     }
   ],
   "residualScan": {
     "required": true,
     "status": "passed",
     "scope": ["README.md", "server", "src", "scripts", "docs"],
-    "patterns": ["电脑局域网地址变化时固定名称失效", "手机必须输入端口", "只提供IP入口", "固定名称迁移新增设备"],
+    "patterns": ["电脑局域网地址变化时固定名称失效", "手机必须输入端口", "只提供IP入口", "Tailscale加入mDNS广播", "固定名称迁移新增设备", "Tailscale迁移新增设备"],
     "unresolved": []
   },
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_real_phone_resolution_and_ip_fallback_acceptance_then_evaluate_delivery_integrated",
-    "stopLine": "Do not expose the service to the public internet, modify Clash or firewall settings, or claim target-phone .local resolution until it is verified on that phone and Wi-Fi."
+    "allowedNextAction": "complete_real_phone_resolution_ip_fallback_and_tailscale_identity_migration_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not expose the service to the public internet, add Tailscale to mDNS broadcast, modify Clash or firewall settings, or claim target-phone .local or Tailnet behavior until verified on that phone and network."
   }
 }

@@ -13,25 +13,25 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines first-scan pairing, durable trusted-device behavior, repeated-scan identity reuse, stable-origin migration, direct reopen, revocation, and model-first default device names with truthful fallback."
+      "evidence": "README defines QR-only authorization, durable trusted-device behavior, repeated-scan identity reuse, stable and Tailscale origin migration, direct reopen without a password, revocation, and model-first default device names with truthful fallback."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records confirmed and deferred scope, including the 2026-08-28 decision to use a reliably exposed phone model as the default name without guessing or identity merging."
+      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records QR as the only authorization route, no password bypass, persistent device credentials, same-identity Tailscale migration, and model-first names without guessing or merging."
     },
     {
       "class": "conflict_audit",
       "status": "synced",
       "paths": ["server/session.ts", "server/pairing.ts", "server/http-app.ts", "README.md", "docs/desktop-console-design.md"],
-      "evidence": "The fixed 30-day server expiry remains removed, QR tickets are one-time, an already trusted browser refreshes or adopts its existing identity instead of creating a duplicate, phone model is display-only, generic names upgrade only on the same credential, and user renames are preserved."
+      "evidence": "An unpaired request is rejected even without legacy password configuration, password POST is disabled, QR tickets are one-time, and a trusted browser refreshes or adopts its existing identity across stable or Tailscale origins instead of creating a duplicate."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["server/session.ts", "server/http-app.ts", "server/session.test.ts", "server/http-app.test.ts", "src/console/ConsoleApp.tsx", "docs/desktop-console-implementation-contract.md"],
-      "evidence": "The current branch candidate contains the persistent device registry, rolling browser session, model-first default naming, generic-name upgrade without overwriting user renames, local device management, revocation, repeated-scan reuse, origin-migration adoption, and tests."
+      "evidence": "The current branch candidate contains QR-only authorization, an unpaired-device scan instruction, persistent rolling credentials, local device management, repeated-scan reuse, stable/Tailscale origin adoption without a new row, model-first naming, and tests."
     }
   ],
   "checks": [
@@ -39,13 +39,13 @@
       "name": "TypeScript typecheck",
       "status": "passed",
       "command": "npm run typecheck",
-      "evidence": "Server and client typechecks passed on 2026-08-28 with model-first default naming and generic-name upgrade enabled."
+      "evidence": "Server and client typechecks passed on 2026-08-28 with QR-only authorization and preferred-origin migration enabled."
     },
     {
       "name": "Unit tests",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Sixteen test files and forty-five tests passed, including Android User-Agent model extraction, Sec-CH-UA-Model preference, truthful iPhone fallback, generic-name upgrade, user-rename preservation, persistent trusted-device, revocation, repeated-scan reuse, one-time pairing tickets, and cross-origin identity adoption."
+      "evidence": "Sixteen test files and forty-seven tests passed, including rejection of unpaired requests without a password, disabled password POST, persistent trusted-device, repeated-scan reuse, cross-origin identity adoption without a new row, Tailscale address classification, model naming, and revocation."
     },
     {
       "name": "Production trusted-device restart probe",
@@ -64,19 +64,25 @@
       "status": "passed",
       "command": "bundled node --input-type=module -e import defaultDeviceName from dist-server/session.js",
       "evidence": "The deployed portable package returned SM-S9280 from an Android Build User-Agent, 23127PN0CC from Sec-CH-UA-Model when the reduced User-Agent exposed only K, and the truthful fallback iPhone when no exact Apple model was available. Live trusted-device count stayed 2 and its file hash was unchanged."
+    },
+    {
+      "name": "Deployed QR-only authorization and data-retention probe",
+      "status": "passed",
+      "command": "deploy portable candidate -> GET/POST /api/session -> inspect unpaired page -> inspect trusted-devices hash",
+      "evidence": "The deployed candidate at release/deployed-qr-tailscale-20260828-193855 reports pairingOnly=true and authenticated=false without a cookie, rejects an old-password POST with HTTP 403, renders only the scan instruction with no password field, and preserves the two-device file at SHA-256 85436A7D983FF6B126E314FB6279C2AB3278EF9921C3495D3F7323DB0BF6C1F1."
     }
   ],
   "residualScan": {
     "required": true,
     "status": "passed",
     "scope": ["README.md", "server", "src", "docs"],
-    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码", "重复扫码新增设备", "固定名称迁移新增设备", "Android手机作为唯一默认名", "按型号合并设备", "自动覆盖用户改名"],
+    "patterns": ["SESSION_MAX_AGE_SECONDS", "30 天", "每次使用都扫码", "手工输入密码", "密码不正确", "空密码自动放行", "重复扫码新增设备", "固定名称迁移新增设备", "Tailscale迁移新增设备", "Android手机作为唯一默认名", "按型号合并设备", "自动覆盖用户改名"],
     "unresolved": []
   },
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_real_phone_model_name_rescan_and_reopen_acceptance_then_evaluate_delivery_integrated",
-    "stopLine": "Do not guess an unavailable iPhone or Android model, merge credentials by model, overwrite a user rename, expand into external network channels, HTTPS hosting, or firewall changes, and do not substitute automated extraction tests for target-phone acceptance."
+    "allowedNextAction": "complete_real_phone_qr_only_reopen_tailscale_identity_migration_model_name_and_rescan_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not treat missing password configuration as authorization, guess a phone model, merge credentials by model, overwrite a user rename, expose a public internet route, change firewall policy, or substitute automated tests for target-phone acceptance."
   }
 }

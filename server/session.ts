@@ -122,19 +122,12 @@ export class SessionStore {
   private devices: StoredDevice[] = [];
   loadError = false;
 
-  constructor(
-    readonly password = process.env.CODEX_PWA_PASSWORD ?? "",
-    readonly storagePath: string | null = defaultDevicePath(),
-  ) {
+  constructor(readonly storagePath: string | null = defaultDevicePath()) {
     this.load();
   }
 
   get authRequired() {
-    return this.password.length > 0;
-  }
-
-  authenticate(password: string) {
-    return !this.authRequired || safeEqual(password, this.password);
+    return true;
   }
 
   create(request: IncomingMessage, response: ServerResponse, secure: boolean, name?: string) {
@@ -181,7 +174,6 @@ export class SessionStore {
   }
 
   isAuthenticated(request: IncomingMessage) {
-    if (!this.authRequired) return true;
     return Boolean(this.validToken(request));
   }
 
