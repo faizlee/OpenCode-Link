@@ -54,6 +54,16 @@ function requireDeviceStore(sessions: SessionStore, response: Response) {
   return false;
 }
 
+function setRouteProbeHeaders(request: Request, response: Response) {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Max-Age", "600");
+  if (request.headers["access-control-request-private-network"] === "true") {
+    response.setHeader("Access-Control-Allow-Private-Network", "true");
+  }
+}
+
 export async function connectionStatus(port: number, lanDiscovery: ConsoleLanDiscovery) {
   const lanAddresses = listLanAddresses(port);
   const tailscaleAddresses = listTailscaleAddresses(port);
@@ -116,8 +126,13 @@ export function createBridgeApp(services: BridgeAppServices): Express {
     response.json({ ok: true });
   });
 
-  app.get("/api/health", (_request, response) => {
-    response.setHeader("Access-Control-Allow-Origin", "*");
+  app.options("/api/health", (request, response) => {
+    setRouteProbeHeaders(request, response);
+    response.status(204).end();
+  });
+
+  app.get("/api/health", (request, response) => {
+    setRouteProbeHeaders(request, response);
     response.setHeader("Cache-Control", "no-store");
     response.json(publicHealth(identity, appServerReady()));
   });

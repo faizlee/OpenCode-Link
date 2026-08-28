@@ -164,6 +164,19 @@ describe("bridge HTTP console APIs", () => {
       expect(sessions.listDevices()).toHaveLength(1);
       expect(sessions.listDevices()[0].id).toBe(firstDevice.id);
 
+      const routeProbePreflight = await fetch(`${listener.origin}/api/health`, {
+        method: "OPTIONS",
+        headers: {
+          Origin: "http://192.168.31.8:18922",
+          "Access-Control-Request-Method": "GET",
+          "Access-Control-Request-Private-Network": "true",
+        },
+      });
+      expect(routeProbePreflight.status).toBe(204);
+      expect(routeProbePreflight.headers.get("access-control-allow-origin")).toBe("*");
+      expect(routeProbePreflight.headers.get("access-control-allow-methods")).toContain("GET");
+      expect(routeProbePreflight.headers.get("access-control-allow-private-network")).toBe("true");
+
       const forged = await fetch(`${listener.origin}/api/session/adopt-route`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
