@@ -13,13 +13,13 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md"],
-      "evidence": "README defines QR-only authorization, durable trusted-device behavior, repeated-scan identity reuse, stable and Tailscale origin migration, direct reopen without a password, revocation, and model-first default device names with truthful fallback."
+      "evidence": "README defines QR-only authorization, one phone-to-computer identity, durable trusted-device behavior, repeated-scan identity reuse, invisible cross-path migration, direct reopen without a password, revocation, and model-first default device names with truthful fallback."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records QR as the only authorization route, no password bypass, persistent device credentials, same-identity Tailscale migration, and model-first names without guessing or merging."
+      "evidence": "Structured user-confirmed decision LAN-TRUSTED-DEVICE-001 records QR as the only authorization route, no password bypass, persistent device credentials, the same identity across LAN/stable-name/Tailscale path changes without user selection, and model-first names without guessing or merging."
     },
     {
       "class": "conflict_audit",
@@ -82,7 +82,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_real_phone_qr_only_reopen_tailscale_identity_migration_model_name_and_rescan_acceptance_then_evaluate_delivery_integrated",
+    "allowedNextAction": "after_separate_authorization_verify_one_qr_and_invisible_cross_path_identity_then_complete_real_phone_acceptance",
     "stopLine": "Do not treat missing password configuration as authorization, guess a phone model, merge credentials by model, overwrite a user rename, expose a public internet route, change firewall policy, or substitute automated tests for target-phone acceptance."
   }
 }

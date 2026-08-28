@@ -15,13 +15,13 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md", "docs/desktop-console-design.md"],
-      "evidence": "Current product authority records the tray-owned service lifecycle, browser-hosted Redline console, QR-only phone authorization, separate Tailscale direct entry, and implementation-candidate boundary. User-visible NotifyIcon/menu, real-phone rescan and Tailscale migration, unknown-occupant manual comparison, and target-machine acceptance remain pending."
+      "evidence": "Current product authority records the tray-owned service lifecycle, browser-hosted Redline console, one-QR phone-to-computer binding, internal invisible transport selection, and the implementation-candidate boundary. The current three-choice pairing UI is explicitly superseded and remains an implementation delta alongside the existing human acceptance items."
     },
     {
       "class": "decision_ledger",
       "status": "synced",
       "paths": ["docs/product-decisions.json"],
-      "evidence": "DESKTOP-TRAY-WEB-CONSOLE-001 remains user_confirmed; its 2026-08-28 update removes password login and adds an explicit Tailscale QR/connection entry while automatic download, WebView2, and full native UI remain deferred."
+      "evidence": "DESKTOP-TRAY-WEB-CONSOLE-001 remains user_confirmed; its 2026-08-29 update keeps QR-only authorization but replaces LAN/stable-name/Tailscale user choices with one pairing QR and software-owned path selection. Automatic download, WebView2, and full native UI remain deferred."
     },
     {
       "class": "conflict_audit",
@@ -33,19 +33,19 @@
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["src/App.tsx", "src/console", "src/navigation.ts", "server/http-app.ts", "server/runtime.ts", "server/session.ts", "scripts/tray.ps1", "scripts/package-windows.ps1", "package.json"],
-      "evidence": "Web console, QR-only session APIs, Tailscale address/QR selection, same-device preferred-origin adoption, newest-rollout selection with cached-source rediscovery and latest-user list preview, runtime identity APIs, tray Owner, packaging, and verification consumers are implemented in this branch as a candidate, not as delivery_integrated."
+      "evidence": "Web console, QR-only session APIs, same-device origin adoption, newest-rollout selection with cached-source rediscovery and latest-user list preview, runtime identity APIs, tray Owner, packaging, and verification consumers exist in this branch as a candidate. The visible LAN/stable-name/Tailscale QR selector is now a known non-compliant implementation delta and is not delivery_integrated."
     },
     {
       "class": "feature_node_map",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/tray.ps1", "src/console/ConsoleApp.tsx"],
-      "evidence": "The chain is launcher to single tray Owner to identified Node service to browser console, then QR-only phone authorization with persistent LOCALAPPDATA credentials and optional same-identity Tailscale adoption."
+      "evidence": "The target chain is launcher to single tray Owner to identified Node service to browser console, then one QR that binds a phone to the computer, persistent LOCALAPPDATA device identity, and software-owned LAN/stable-name/Tailscale selection and failover."
     },
     {
       "class": "runtime_capability_map",
       "status": "synced",
       "paths": ["scripts/tray.ps1", "scripts/OpenCodexLink.Identity.psm1", "scripts/OpenCodexLink.Service.psm1", "server/runtime.ts", "server/http-app.ts", "src/console/ConsoleApp.tsx"],
-      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, LAN/Tailscale pairing choices, portable-package identity, and main-thread tray IPC are present in source; human NotifyIcon and real-phone Tailscale behavior are not claimed."
+      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, transport discovery, portable-package identity, and main-thread tray IPC are present in source. The contract now requires collapsing the current pairing choices into one automatically selected QR while retaining transport status for diagnosis."
     },
     {
       "class": "dependency_closure",
@@ -69,13 +69,13 @@
       "class": "verification_contract",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1", "scripts/OpenCodexLink.TrayIpc.Tests.ps1"],
-      "evidence": "Automated checks cover QR-only authorization, repeated-scan and cross-origin identity reuse, Tailscale classification, model-first naming, device editing, routing, latest-user list preview, and both duplicate-rollout cases: choosing the newest valid file at first read and switching a cached thread after a newer file appears. Package smoke and Headless tray IPC remain part of the gate."
+      "evidence": "Existing automated checks remain the implementation baseline for QR-only authorization, repeated-scan and cross-origin identity reuse, Tailscale classification, model-first naming, device editing, routing, latest-user list preview, and duplicate rollouts. The next implementation must add one-visible-QR, automatic-path-selection, fallback, and no-duplicate-device regressions."
     },
     {
       "class": "roadmap",
       "status": "synced",
       "paths": ["docs/README.md", "docs/desktop-console-implementation-contract.md"],
-      "evidence": "The next work is human confirmation of the visible NotifyIcon/menu, real-phone QR-only reopen and Tailscale identity migration, unknown-occupant manual comparison, and target-machine portable unzip. Public internet, automatic download, WebView2, full native UI, release, and delivery_integrated remain deferred."
+      "evidence": "The newly confirmed one-QR invisible-transport delta requires separate implementation authorization before the remaining human NotifyIcon/menu, real-phone path switching, unknown-occupant comparison, and target-machine acceptance can close. Public internet, automatic download, WebView2, full native UI, release, and delivery_integrated remain deferred."
     },
     {
       "class": "control_status",
@@ -158,6 +158,8 @@
       "password login still enabled",
       "missing password bypasses pairing",
       "Tailscale included in mDNS broadcast",
+      "user selects LAN stable-name or Tailscale QR",
+      "multiple user-facing pairing QR choices",
       "first matching rollout wins",
       "cached old rollout never rediscovered",
       "Redline article semantics as admin UI",
@@ -168,7 +170,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "complete_user_visible_notifyicon_real_phone_model_rescan_unknown_occupant_and_target_machine_acceptance_then_evaluate_delivery_integrated",
-    "stopLine": "Stop on unprovable process identity, guessed phone model, model-based credential merging, user-rename overwrite, device-credential schema drift, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before user-visible NotifyIcon/menu, real-phone model/rescan, unknown-occupant manual comparison, and target-machine acceptance."
+    "allowedNextAction": "after_separate_authorization_implement_one_qr_invisible_transport_then_complete_remaining_human_acceptance",
+    "stopLine": "Do not modify runtime code without separate implementation authorization. Stop on unprovable process identity, guessed phone model, model-based credential merging, user-rename overwrite, device-credential schema drift, public exposure, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before the three-choice UI is removed and the new path-selection behavior plus remaining human acceptance are verified."
   }
 }
