@@ -28,11 +28,10 @@ import { isDesktopConsolePath, listPath, threadIdFromPath, threadPath } from "./
 import {
   clearRouteState,
   credentialFromHash,
-  isStableHost,
-  isTailscaleHost,
   loadRouteState,
   probeRouteOrigin,
   routeHash,
+  routeRelayFromHash,
   saveRouteState,
   type RouteLink,
   type RouteState,
@@ -68,6 +67,7 @@ const SHORTCUT_READY_KEY = "opencodexlink-shortcut-ready-v2";
 
 async function readSession(): Promise<SessionState> {
   const hashCredential = credentialFromHash(window.location.hash);
+  const relay = routeRelayFromHash(window.location.hash);
   const saved = loadRouteState();
   const credential = hashCredential || saved?.credential || "";
   let response = await fetch("/api/session", { cache: "no-store" });
@@ -81,15 +81,29 @@ async function readSession(): Promise<SessionState> {
       body: JSON.stringify({ credential }),
     });
     if (adopted.ok) {
-      saveRouteState(credential, saved?.links ?? []);
+      saveRouteState(
+        credential,
+        relay?.links ?? saved?.links ?? [],
+        relay?.preparedOrigins ?? saved?.preparedOrigins ?? [window.location.origin],
+      );
       response = await fetch("/api/session", { cache: "no-store" });
       data = await response.json() as SessionState;
     }
   } else if (data.authenticated && credential) {
-    saveRouteState(credential, saved?.links ?? []);
+    saveRouteState(
+      credential,
+      relay?.links ?? saved?.links ?? [],
+      relay?.preparedOrigins ?? saved?.preparedOrigins ?? [window.location.origin],
+    );
   }
 
   if (hashCredential && data.authenticated) {
+    if (relay && !relay.returning && relay.returnOrigin !== window.location.origin) {
+      const destination = new URL(relay.returnPath, relay.returnOrigin);
+      destination.hash = routeHash(credential, { ...relay, returning: true }).slice(1);
+      window.location.replace(destination.toString());
+      return { ...data, loading: false };
+    }
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
   }
   return { ...data, loading: false };
@@ -228,7 +242,10 @@ function PreferredAddressAdopter({ authenticated, connection }: { authenticated:
           if (response.ok) {
             const data = await response.json() as { credential?: string; links?: RouteLink[] };
             if (data.credential && Array.isArray(data.links)) {
-              cachedState = saveRouteState(data.credential, data.links);
+              const prepared = cachedState?.credential === data.credential
+                ? cachedState.preparedOrigins
+                : [];
+              cachedState = saveRouteState(data.credential, data.links, [...prepared, window.location.origin]);
               currentOriginReachable = true;
             }
           }
@@ -238,22 +255,28 @@ function PreferredAddressAdopter({ authenticated, connection }: { authenticated:
         }
 
         if (!cachedState || disposed) return;
-        const currentIsTailscale = isTailscaleHost(window.location.hostname);
-        if (currentOriginReachable && currentIsTailscale) return;
-
-        const currentIsStable = isStableHost(window.location.hostname);
         const candidates = cachedState.links.filter((link) => {
           if (link.origin === window.location.origin) return false;
-          if (!currentOriginReachable) return true;
-          if (link.tailscale) return true;
-          return !currentIsStable && link.stable === true;
+          return !currentOriginReachable || !cachedState?.preparedOrigins.includes(link.origin);
         });
 
         for (const link of candidates) {
           try {
             if (!await probeRouteOrigin(link.origin)) continue;
             const destination = new URL(`${window.location.pathname}${window.location.search}`, link.origin);
-            destination.hash = routeHash(cachedState.credential).slice(1);
+            if (currentOriginReachable) {
+              const preparedOrigins = [...cachedState.preparedOrigins, link.origin];
+              cachedState = saveRouteState(cachedState.credential, cachedState.links, preparedOrigins);
+              destination.hash = routeHash(cachedState.credential, {
+                returnOrigin: window.location.origin,
+                returnPath: `${window.location.pathname}${window.location.search}`,
+                preparedOrigins,
+                links: cachedState.links,
+                returning: false,
+              }).slice(1);
+            } else {
+              destination.hash = routeHash(cachedState.credential).slice(1);
+            }
             window.location.replace(destination.toString());
             return;
           } catch {

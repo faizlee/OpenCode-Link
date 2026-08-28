@@ -6,6 +6,7 @@ import {
   isTailscaleHost,
   isTrustedRouteOrigin,
   routeHash,
+  routeRelayFromHash,
   sanitizeRouteLinks,
 } from "./route-failover";
 
@@ -45,5 +46,24 @@ describe("route failover helpers", () => {
     expect(isRouteProbeMessage("http://100.83.218.96:8787", "http://100.83.218.96:8787", message)).toBe(true);
     expect(isRouteProbeMessage("http://attacker.test", "http://100.83.218.96:8787", message)).toBe(false);
     expect(isRouteProbeMessage("http://100.83.218.96:8787", "http://100.83.218.96:8787", { ...message, productId: "Other" })).toBe(false);
+  });
+
+  it("carries a source-validated return relay without exposing it to the server", () => {
+    const relay = {
+      returnOrigin: "http://192.168.31.8:8787",
+      returnPath: "/thread/abc?q=test",
+      preparedOrigins: ["http://192.168.31.8:8787", "http://100.83.218.96:8787"],
+      links: [
+        { origin: "http://192.168.31.8:8787" },
+        { origin: "http://100.83.218.96:8787", tailscale: true },
+      ],
+      returning: false,
+    };
+    const hash = routeHash("r1.device.secret", relay);
+    expect(hash.startsWith("#ocl-route=r1.device.secret&ocl-relay=")).toBe(true);
+    expect(routeRelayFromHash(hash)).toEqual(relay);
+
+    const malicious = routeHash("r1.device.secret", { ...relay, returnOrigin: "https://attacker.test" });
+    expect(routeRelayFromHash(malicious)).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 export const ROUTE_STATE_KEY = "opencodexlink-route-state-v1";
 export const ROUTE_HASH_KEY = "ocl-route";
+export const ROUTE_RELAY_KEY = "ocl-relay";
 export const ROUTE_PROBE_MESSAGE = "opencodexlink-route-probe";
 
 export interface RouteLink {
@@ -12,7 +13,16 @@ export interface RouteState {
   schemaVersion: 1;
   credential: string;
   links: RouteLink[];
+  preparedOrigins: string[];
   savedAt: number;
+}
+
+export interface RouteRelay {
+  returnOrigin: string;
+  returnPath: string;
+  preparedOrigins: string[];
+  links: RouteLink[];
+  returning: boolean;
 }
 
 function isIpv4(hostname: string, matcher: (parts: number[]) => boolean) {
@@ -54,8 +64,37 @@ export function credentialFromHash(hash: string) {
   return new URLSearchParams(hash.slice(1)).get(ROUTE_HASH_KEY)?.trim() ?? "";
 }
 
-export function routeHash(credential: string) {
-  return `#${ROUTE_HASH_KEY}=${encodeURIComponent(credential)}`;
+export function routeRelayFromHash(hash: string): RouteRelay | null {
+  if (!hash.startsWith("#")) return null;
+  const encoded = new URLSearchParams(hash.slice(1)).get(ROUTE_RELAY_KEY);
+  if (!encoded) return null;
+  try {
+    const parsed = JSON.parse(encoded) as Partial<RouteRelay>;
+    const returnOrigin = typeof parsed.returnOrigin === "string" && isTrustedRouteOrigin(parsed.returnOrigin)
+      ? parsed.returnOrigin
+      : "";
+    const returnPath = typeof parsed.returnPath === "string"
+      && parsed.returnPath.startsWith("/")
+      && !parsed.returnPath.startsWith("//")
+      ? parsed.returnPath
+      : "/";
+    if (!returnOrigin) return null;
+    return {
+      returnOrigin,
+      returnPath,
+      preparedOrigins: sanitizeOrigins(Array.isArray(parsed.preparedOrigins) ? parsed.preparedOrigins : []),
+      links: sanitizeRouteLinks(Array.isArray(parsed.links) ? parsed.links : []),
+      returning: parsed.returning === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function routeHash(credential: string, relay?: RouteRelay) {
+  const params = new URLSearchParams({ [ROUTE_HASH_KEY]: credential });
+  if (relay) params.set(ROUTE_RELAY_KEY, JSON.stringify(relay));
+  return `#${params.toString()}`;
 }
 
 export function isRouteProbeMessage(origin: string, expectedOrigin: string, data: unknown) {
@@ -97,6 +136,12 @@ export function sanitizeRouteLinks(links: RouteLink[]) {
     .filter((link, index, all) => all.findIndex((candidate) => candidate.origin === link.origin) === index);
 }
 
+export function sanitizeOrigins(origins: string[]) {
+  return origins
+    .filter((origin) => typeof origin === "string" && isTrustedRouteOrigin(origin))
+    .filter((origin, index, all) => all.indexOf(origin) === index);
+}
+
 export function loadRouteState(): RouteState | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(ROUTE_STATE_KEY) ?? "null") as Partial<RouteState> | null;
@@ -105,6 +150,7 @@ export function loadRouteState(): RouteState | null {
       schemaVersion: 1,
       credential: parsed.credential,
       links: sanitizeRouteLinks(Array.isArray(parsed.links) ? parsed.links : []),
+      preparedOrigins: sanitizeOrigins(Array.isArray(parsed.preparedOrigins) ? parsed.preparedOrigins : []),
       savedAt: typeof parsed.savedAt === "number" ? parsed.savedAt : 0,
     };
   } catch {
@@ -112,11 +158,12 @@ export function loadRouteState(): RouteState | null {
   }
 }
 
-export function saveRouteState(credential: string, links: RouteLink[]) {
+export function saveRouteState(credential: string, links: RouteLink[], preparedOrigins: string[] = []) {
   const state: RouteState = {
     schemaVersion: 1,
     credential,
     links: sanitizeRouteLinks(links),
+    preparedOrigins: sanitizeOrigins(preparedOrigins),
     savedAt: Date.now(),
   };
   try {

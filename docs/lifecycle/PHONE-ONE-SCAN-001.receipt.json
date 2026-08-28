@@ -3,7 +3,7 @@
   "receiptType": "feature_lifecycle_validation_receipt",
   "featureId": "PHONE-ONE-SCAN-001",
   "stage": "decision_converged",
-  "manifestDigest": "b2b8b07118f77f68f01d7a82d9332dab3a1129c901f1f61eb9fcdb1d77e6721e",
+  "manifestDigest": "8fce27a7aee171fcadb3a86d57521568f48b6e47696f3cffc300a1e5ee2d7608",
   "allowed": true,
   "blockers": [],
   "allowedNextAction": "complete_real_phone_reopen_and_network_change_acceptance_then_evaluate_delivery_integrated",
@@ -21,10 +21,10 @@
     "The confirmed product model binds one phone device to one computer. The desktop add-phone action and its one QR are the only user-facing path; users never discover, copy, or manually open technical addresses.",
     "PHONE-ONE-SCAN-001 records device-to-computer identity, one desktop-generated QR, no manual address discovery, automatic LAN/stable-name/Tailscale selection, identity preservation, and no rescan on path changes.",
     "The source and contract now expose one pairing QR with no LAN/stable-name/Tailscale selector. Technical addresses remain diagnostic-only, and target-phone acceptance is still distinct from implementation.",
-    "The authorized candidate exposes one desktop-generated QR that first uses the currently scannable LAN/stable route, then probes Tailscale and other trusted candidates through a source-validated iframe handshake before migrating the same device identity. Technical addresses remain diagnostic-only.",
+    "The authorized candidate exposes one desktop-generated QR, probes trusted candidates through a source-validated iframe handshake, and uses a top-level return relay to mint an independent same-device session on each reachable origin. Registered raw LAN, stable-name, and Tailscale links then open directly without QR parameters; technical addresses remain diagnostic-only.",
     "The updated structured decision file parses successfully.",
     "Current authorities and source define one QR and internal transport selection; no user-facing network selector remains in ConsoleApp.",
-    "17 test files and 57 tests passed. The pairing API regression proves that one desktop-generated QR remains scannable on LAN while the route-probe endpoint and source validation provide a browser-safe path check before automatic Tailscale migration. The target phone independently proved the Tailscale address is reachable; final desktop-QR phone acceptance remains pending."
+    "17 test files and 58 tests passed. The pairing API regression keeps one LAN-scannable QR; route-probe source validation and relay-state tests prove that each reachable trusted origin can receive an independent same-device session and return to the original path without exposing the credential to the server request. The target phone independently proved the Tailscale address is reachable; final raw-link phone acceptance remains pending."
   ],
   "invalidationConditions": [
     "manifest_digest_changed",
