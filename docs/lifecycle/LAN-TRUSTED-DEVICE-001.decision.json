@@ -45,7 +45,7 @@
       "name": "Unit tests",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Sixteen test files and forty-seven tests passed, including rejection of unpaired requests without a password, disabled password POST, persistent trusted-device, repeated-scan reuse, cross-origin identity adoption without a new row, Tailscale address classification, model naming, and revocation."
+      "evidence": "Sixteen test files and fifty-two tests passed, including rejection of unpaired requests without a password, one-primary-QR API shape, concurrent one-time origin migration tickets, persistent trusted-device identity, repeated-scan reuse, cross-origin adoption without a new row, Tailscale address classification, model naming, and revocation."
     },
     {
       "name": "Production trusted-device restart probe",
@@ -82,7 +82,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "after_separate_authorization_verify_one_qr_and_invisible_cross_path_identity_then_complete_real_phone_acceptance",
+    "allowedNextAction": "complete_real_phone_one_qr_reopen_cross_path_identity_model_name_and_rescan_acceptance",
     "stopLine": "Do not treat missing password configuration as authorization, guess a phone model, merge credentials by model, overwrite a user rename, expose a public internet route, change firewall policy, or substitute automated tests for target-phone acceptance."
   }
 }

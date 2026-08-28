@@ -19,4 +19,22 @@ describe("PairingStore", () => {
 
     expect(store.consume(ticket.token, 1_001)).toMatchObject({ sessionToken: "v2.device.secret" });
   });
+
+  it("keeps concurrent one-time migrations while a refreshed QR only replaces older pairing tickets", () => {
+    const store = new PairingStore();
+    const oldPairing = store.issue({ now: 1_000 });
+    const tailscale = store.issue({ now: 1_001, sessionToken: "v2.device.secret", kind: "migration" });
+    const stable = store.issue({ now: 1_002, sessionToken: "v2.device.secret", kind: "migration" });
+
+    expect(store.consume(oldPairing.token, 1_003)).toEqual(oldPairing);
+    expect(store.consume(tailscale.token, 1_003)).toEqual(tailscale);
+    expect(store.consume(stable.token, 1_003)).toEqual(stable);
+    expect(store.consume(tailscale.token, 1_004)).toBeNull();
+
+    const refreshedPairing = store.issue({ now: 2_000 });
+    const pendingMigration = store.issue({ now: 2_001, sessionToken: "v2.device.secret", kind: "migration" });
+    store.issue({ now: 2_002 });
+    expect(store.consume(refreshedPairing.token, 2_003)).toBeNull();
+    expect(store.consume(pendingMigration.token, 2_003)).toEqual(pendingMigration);
+  });
 });

@@ -14,7 +14,7 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md", "docs/desktop-console-design.md"],
-      "evidence": "Current product authority records the tray-owned service lifecycle, browser-hosted management console, unchanged phone PWA, five-section information architecture, and implementation-not-started boundary."
+      "evidence": "Current product authority records the tray-owned service lifecycle, browser-hosted management console, unchanged phone task UI, five-section information architecture, one-QR device binding, and internal transport selection."
     },
     {
       "class": "decision_ledger",
@@ -26,13 +26,13 @@
       "class": "conflict_audit",
       "status": "synced",
       "paths": ["README.md", "scripts/launch.ps1", "scripts/stop.ps1", "docs/desktop-console-design.md"],
-      "evidence": "The current command and script launch/stop flow is classified as implemented current behavior and a transitional predecessor, not as completion of the confirmed tray design."
+      "evidence": "The current tray, launch/stop flow, Redline console, and one-QR pairing candidate are implemented current behavior; target-phone and target-machine acceptance remain distinct from delivery completion."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["src/App.tsx", "src/styles.css", "server/index.ts", "scripts/launch.ps1", "scripts/stop.ps1", "scripts/package-windows.ps1", "package.json", "docs/desktop-console-design.md"],
-      "evidence": "Affected web, server lifecycle, launcher, packaging, version handshake, device-management, and visual surfaces are identified; no runtime implementation is claimed or authorized at this stage."
+      "evidence": "Affected web, server lifecycle, launcher, packaging, version handshake, device-management, pairing, transport-selection, and visual surfaces are implemented as a candidate and tracked by the current contract manifest."
     }
   ],
   "checks": [
@@ -71,7 +71,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "prepare_end_to_end_tray_and_web_console_implementation_contract",
-    "stopLine": "Do not modify runtime code, page styles, launch configuration, package contents, or running processes without separate implementation authorization."
+    "allowedNextAction": "consume_current_contract_receipt_and_complete_remaining_human_acceptance",
+    "stopLine": "Do not claim delivery_integrated, release, public exposure, or target-phone seamless switching until the current contract's remaining acceptance evidence is complete."
   }
 }

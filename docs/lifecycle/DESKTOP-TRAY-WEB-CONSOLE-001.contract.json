@@ -15,7 +15,7 @@
       "class": "product_authority",
       "status": "synced",
       "paths": ["README.md", "docs/desktop-console-design.md"],
-      "evidence": "Current product authority records the tray-owned service lifecycle, browser-hosted Redline console, one-QR phone-to-computer binding, internal invisible transport selection, and the implementation-candidate boundary. The current three-choice pairing UI is explicitly superseded and remains an implementation delta alongside the existing human acceptance items."
+      "evidence": "Current product authority and candidate source record the tray-owned service lifecycle, browser-hosted Redline console, one-QR phone-to-computer binding, internal invisible transport selection, and the implementation-candidate boundary. The superseded three-choice pairing UI has been removed; remaining target-phone and target-machine acceptance stays open."
     },
     {
       "class": "decision_ledger",
@@ -33,7 +33,7 @@
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["src/App.tsx", "src/console", "src/navigation.ts", "server/http-app.ts", "server/runtime.ts", "server/session.ts", "scripts/tray.ps1", "scripts/package-windows.ps1", "package.json"],
-      "evidence": "Web console, QR-only session APIs, same-device origin adoption, newest-rollout selection with cached-source rediscovery and latest-user list preview, runtime identity APIs, tray Owner, packaging, and verification consumers exist in this branch as a candidate. The visible LAN/stable-name/Tailscale QR selector is now a known non-compliant implementation delta and is not delivery_integrated."
+      "evidence": "Web console, one-primary-QR session API, same-device origin adoption, concurrent one-time migration tickets, newest-rollout selection with cached-source rediscovery and latest-user list preview, runtime identity APIs, tray Owner, packaging, and verification consumers exist in this branch as a candidate. No visible LAN/stable-name/Tailscale QR selector remains; this is still not delivery_integrated."
     },
     {
       "class": "feature_node_map",
@@ -45,7 +45,7 @@
       "class": "runtime_capability_map",
       "status": "synced",
       "paths": ["scripts/tray.ps1", "scripts/OpenCodexLink.Identity.psm1", "scripts/OpenCodexLink.Service.psm1", "server/runtime.ts", "server/http-app.ts", "src/console/ConsoleApp.tsx"],
-      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, transport discovery, portable-package identity, and main-thread tray IPC are present in source. The contract now requires collapsing the current pairing choices into one automatically selected QR while retaining transport status for diagnosis."
+      "evidence": "STA NotifyIcon tray, occupant classification, loopback runtime/shutdown APIs, five-area Redline console, transport discovery, one automatically selected pairing QR, diagnostic-only address details, portable-package identity, and main-thread tray IPC are present in source."
     },
     {
       "class": "dependency_closure",
@@ -69,13 +69,13 @@
       "class": "verification_contract",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "scripts/OpenCodexLink.Tests.ps1", "scripts/OpenCodexLink.Package.Tests.ps1", "scripts/OpenCodexLink.TrayIpc.Tests.ps1"],
-      "evidence": "Existing automated checks remain the implementation baseline for QR-only authorization, repeated-scan and cross-origin identity reuse, Tailscale classification, model-first naming, device editing, routing, latest-user list preview, and duplicate rollouts. The next implementation must add one-visible-QR, automatic-path-selection, fallback, and no-duplicate-device regressions."
+      "evidence": "Automated checks cover QR-only authorization, one-visible-QR source/API shape, reliable initial-address selection, concurrent migration tickets, repeated-scan and cross-origin identity reuse, Tailscale classification, model-first naming, device editing, routing, latest-user list preview, and duplicate rollouts."
     },
     {
       "class": "roadmap",
       "status": "synced",
       "paths": ["docs/README.md", "docs/desktop-console-implementation-contract.md"],
-      "evidence": "The newly confirmed one-QR invisible-transport delta requires separate implementation authorization before the remaining human NotifyIcon/menu, real-phone path switching, unknown-occupant comparison, and target-machine acceptance can close. Public internet, automatic download, WebView2, full native UI, release, and delivery_integrated remain deferred."
+      "evidence": "The one-QR invisible-transport candidate is implemented, packaged, and locally verified. Remaining work is human NotifyIcon/menu, real-phone path switching, unknown-occupant comparison, and target-machine acceptance. Public internet, automatic download, WebView2, full native UI, release, and delivery_integrated remain deferred."
     },
     {
       "class": "control_status",
@@ -95,7 +95,7 @@
       "name": "npm test",
       "status": "passed",
       "command": "npm test",
-      "evidence": "Vitest: 16 files, 49 tests passed, including newest valid rollout selection for duplicate thread IDs, latest-user list preview, cached-source rediscovery, QR-only authorization, Tailscale classification, phone-model behavior, repeated-scan identity reuse, and cross-origin adoption preserving the device ID and row count."
+      "evidence": "Vitest: 16 files, 52 tests passed, including one-primary-QR API shape, reliable initial transport fallback order, absence of a user-facing network selector, concurrent one-time migration tickets, newest valid rollout selection, QR-only authorization, phone-model behavior, repeated-scan identity reuse, and cross-origin adoption preserving the device ID and row count."
     },
     {
       "name": "npm run build",
@@ -124,8 +124,8 @@
     {
       "name": "Live local tray and browser acceptance",
       "status": "passed",
-      "command": "launch packaged candidate; inspect /api/runtime and /api/session; pair through the Tailscale URL at 390px; open the current task and assert latest-turn text; close the test tab and reset the viewport; delete only the temporary test device; compare trusted-devices.json SHA-256",
-      "evidence": "The final candidate runs from release/deployed-latest-preview-20260828-234507/OpenCodexLink with tray PID 21892 and service PID 41040 on build 0.1.0+20260828T154310Z. A 390px browser paired through http://100.83.218.96:8787 and showed '开始' directly on the current task card; after opening the task it displayed the same latest user message, the duplicate-JSONL root-cause explanation, and the active list-preview fix commentary. This proves both the mobile list summary and opened conversation now follow the newest valid rollout instead of the older same-ID file. The test tab was closed, the viewport reset, and only temporary devices created by the two bounded checks (SWwyDvKiJ2Fc-7MX and SlrK4WGAM9jpDHfd) were deleted; all three pre-existing device IDs remain. Both replacements preserved trusted-devices.json at three rows with SHA-256 309905AC61C461B5B479CC659B1EA90C93EC665662E57067E48BDDF915495A1C. Earlier QR-only authentication, LAN/fixed-name/Tailscale choices, old-password rejection, no-overflow mobile layout, Tailscale health, and same-version ownership checks remain covered by the preceding affected evidence."
+      "command": "launch packaged candidate; inspect one-QR /api/pairing response and management UI; pair at 390px through its LAN primary URL; observe automatic Tailscale migration and task-list entry; close tabs and reset viewport; delete only the temporary device; compare trusted-devices.json SHA-256",
+      "evidence": "The final candidate runs from release/deployed-one-qr-final-20260829-015650/OpenCodexLink with tray PID 16400 and service PID 59892 on build 0.1.0+20260828T175508Z. /api/pairing returned exactly one primary QR at http://192.168.31.181:8787 while retaining three diagnostic address records with no extra QR or URL fields. The management panel showed one QR and no LAN/stable-name/Tailscale selector. A 390px browser used that LAN QR, then automatically migrated the same identity to http://100.83.218.96:8787/ and displayed the task list without a rescan or expired-ticket page. The migration-ticket overwrite found during the first probe was fixed with typed concurrent one-time migration tickets; refreshing a pairing QR now replaces only pairing tickets and cannot cancel an in-flight migration. Temporary verification devices L6up9BokHVOM7CM1, 2IqgDFJ9RJaOCq7t, and bmVyKr602NCgIS73 were removed; all three pre-existing device IDs remain and trusted-devices.json returned to SHA-256 309905AC61C461B5B479CC659B1EA90C93EC665662E57067E48BDDF915495A1C."
     },
     {
       "name": "git diff --check",
@@ -170,7 +170,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "after_separate_authorization_implement_one_qr_invisible_transport_then_complete_remaining_human_acceptance",
-    "stopLine": "Do not modify runtime code without separate implementation authorization. Stop on unprovable process identity, guessed phone model, model-based credential merging, user-rename overwrite, device-credential schema drift, public exposure, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before the three-choice UI is removed and the new path-selection behavior plus remaining human acceptance are verified."
+    "allowedNextAction": "complete_real_phone_network_switch_notifyicon_unknown_occupant_and_target_machine_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Stop on unprovable process identity, guessed phone model, model-based credential merging, user-rename overwrite, device-credential schema drift, public exposure, new heavyweight runtime need, product semantics conflict, force push, release, PR, remote deletion, or external publication. Do not write delivery_integrated before real-phone network switching and the remaining human acceptance are verified."
   }
 }

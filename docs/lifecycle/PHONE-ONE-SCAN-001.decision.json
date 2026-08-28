@@ -23,13 +23,13 @@
       "class": "conflict_audit",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx"],
-      "evidence": "The contract explicitly classifies the current three-choice pairing UI as a superseded implementation delta. It is not treated as current product authority or completed acceptance."
+      "evidence": "The source and contract now expose one pairing QR with no LAN/stable-name/Tailscale selector. Technical addresses remain diagnostic-only, and target-phone acceptance is still distinct from implementation."
     },
     {
       "class": "downstream_impact",
       "status": "synced",
       "paths": ["docs/desktop-console-implementation-contract.md", "src/console/ConsoleApp.tsx", "server/http-app.ts", "server/session.ts"],
-      "evidence": "A later separately authorized implementation must expose one QR, choose a reachable transport internally, preserve the same trusted-device identity across origin changes, keep technical addresses diagnostic-only, and add regression coverage."
+      "evidence": "The authorized candidate exposes one QR, chooses a reliable initial transport internally, preserves the same trusted-device identity across origin changes, keeps technical addresses diagnostic-only, and includes interface/API/migration-ticket regressions."
     }
   ],
   "checks": [
@@ -43,7 +43,7 @@
       "name": "Decision and contract residual scan",
       "status": "passed",
       "command": "rg semantic multi-QR and user-selected-network wording in current product and contract sources",
-      "evidence": "Current authorities define one QR and internal transport selection; the old three-choice source UI is explicitly classified as pending implementation work."
+      "evidence": "Current authorities and source define one QR and internal transport selection; no user-facing network selector remains in ConsoleApp."
     }
   ],
   "residualScan": {
@@ -56,7 +56,7 @@
   "gate": {
     "allowed": true,
     "blockers": [],
-    "allowedNextAction": "separately_authorize_single_qr_invisible_transport_implementation",
-    "stopLine": "Do not modify runtime code or claim the three-choice UI is removed until implementation is separately authorized, verified, packaged, and deployed."
+    "allowedNextAction": "complete_real_phone_reopen_and_network_change_acceptance_then_evaluate_delivery_integrated",
+    "stopLine": "Do not claim target-phone seamless failover or delivery_integrated until a real phone reopens and changes network paths successfully; do not expose public internet or alter trusted-device semantics."
   }
 }

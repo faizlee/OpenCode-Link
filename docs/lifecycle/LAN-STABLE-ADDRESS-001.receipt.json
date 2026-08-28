@@ -3,11 +3,11 @@
   "receiptType": "feature_lifecycle_validation_receipt",
   "featureId": "LAN-STABLE-ADDRESS-001",
   "stage": "decision_converged",
-  "manifestDigest": "ac4b5e3838e22b757f847728e509c473f0ed9061c0a68303d9fa624c389a790a",
+  "manifestDigest": "62b348e4741af80dc13753df9768d3202fa81e10a506154f79491befd1251769",
   "allowed": true,
   "blockers": [],
-  "allowedNextAction": "separately_authorize_internal_transport_selection_implementation",
-  "stopLine": "Do not expose the service publicly, add Tailscale to physical mDNS, alter trusted-device semantics, or implement the new selector without separate authorization.",
+  "allowedNextAction": "complete_real_phone_lan_stable_tailscale_switch_acceptance",
+  "stopLine": "Do not expose the service publicly, add Tailscale to physical mDNS, alter trusted-device semantics, or claim target-phone seamless switching before real-phone verification.",
   "decisionAuthorityStatus": "user_confirmed",
   "evidenceRefs": [
     "docs/product-decisions.json#LAN-STABLE-ADDRESS-001",
@@ -22,10 +22,10 @@
     "server/session.ts",
     "LAN IP, stable name, Tailscale, and future transports are internal candidates behind one phone-to-computer binding and one QR.",
     "The structured ledger records automatic reachability-based selection, invisible path switching, diagnostic-only technical addresses, and same-device identity preservation.",
-    "The existing LAN/stable-name/Tailscale buttons are a known superseded implementation candidate, not a competing authority. Tailscale remains excluded from physical mDNS and public-internet claims.",
-    "Implementation must add an internal transport selector and failover policy, keep one trusted-device identity across origins, show only one pairing QR, retain technical status for diagnosis, and test fallback without duplicate devices.",
+    "The LAN/stable-name/Tailscale pairing buttons have been removed from the source. Tailscale remains an internal candidate excluded from physical mDNS and public-internet claims.",
+    "The candidate selects one reliable initial address, keeps one trusted-device identity across origins, shows one pairing QR, retains technical status for diagnosis, and preserves concurrent one-time migration tickets so Tailscale and stable-name fallback do not invalidate each other.",
     "The updated structured decision file parses successfully.",
-    "Current authorities expose one QR and make transport selection internal; the source UI mismatch is recorded as an implementation delta."
+    "Current authorities and source expose one QR and make transport selection internal; the old source UI mismatch is removed."
   ],
   "invalidationConditions": [
     "manifest_digest_changed",

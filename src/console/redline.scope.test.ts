@@ -23,4 +23,12 @@ describe("Redline console style isolation", () => {
     expect(phone).toContain("--accent: #58d69b");
     expect(phone).not.toContain("#fffcf8");
   });
+
+  it("shows one phone-binding QR and keeps transport choices out of the user path", () => {
+    const consoleSource = readFileSync(join(srcRoot, "console/ConsoleApp.tsx"), "utf8");
+
+    expect(consoleSource).toContain("扫描后会绑定这台手机与电脑");
+    expect(consoleSource).not.toContain('aria-label="选择配对网络"');
+    expect(consoleSource).not.toContain('setPairingOrigin');
+  });
 });

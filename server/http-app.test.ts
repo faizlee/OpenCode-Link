@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { uploadRoot } from "./attachment-upload.js";
-import { createBridgeApp } from "./http-app.js";
+import { createBridgeApp, selectInitialPairingAddress } from "./http-app.js";
 import { PairingStore } from "./pairing.js";
 import { createRuntimeIdentity, writeRuntimeRecord } from "./runtime.js";
 import { SessionStore } from "./session.js";
@@ -48,6 +48,17 @@ function deviceRequest(userAgent: string) {
 }
 
 describe("bridge HTTP console APIs", () => {
+  it("selects one reliable initial pairing address and keeps other transports internal", () => {
+    const lan = { name: "Wi-Fi", address: "192.168.31.8", origin: "http://192.168.31.8:8787" };
+    const stable = { name: "固定名称", address: "opencodexlink.local", origin: "http://opencodexlink.local", stable: true as const };
+    const tailscale = { name: "Tailscale", address: "100.83.218.96", origin: "http://100.83.218.96:8787", tailscale: true as const };
+
+    expect(selectInitialPairingAddress([lan], stable, [tailscale])).toEqual(lan);
+    expect(selectInitialPairingAddress([], stable, [tailscale])).toEqual(stable);
+    expect(selectInitialPairingAddress([], null, [tailscale])).toEqual(tailscale);
+    expect(selectInitialPairingAddress([], null, [])).toBeNull();
+  });
+
   it("reuses the same trusted-device row when the phone scans again", async () => {
     const dataRoot = tempDataRoot();
     const sessions = new SessionStore(join(dataRoot, "trusted-devices.json"));
@@ -58,6 +69,10 @@ describe("bridge HTTP console APIs", () => {
       pairing,
       identity,
       appServerReady: () => true,
+      networkAddresses: () => ({
+        lanAddresses: [{ name: "Wi-Fi", address: "192.168.31.8", origin: "http://192.168.31.8:18922" }],
+        tailscaleAddresses: [{ name: "Tailscale", address: "100.83.218.96", origin: "http://100.83.218.96:18922", tailscale: true }],
+      }),
       lanDiscovery: {
         defaultPortReady: false,
         address: async () => ({
@@ -80,6 +95,18 @@ describe("bridge HTTP console APIs", () => {
       });
       expect(passwordLogin.status).toBe(403);
       expect(sessions.listDevices()).toHaveLength(0);
+
+      const pairingResponse = await fetch(`${listener.origin}/api/pairing`, { method: "POST" });
+      expect(pairingResponse.status).toBe(200);
+      const pairingBody = await pairingResponse.json() as {
+        primary: { origin: string; url: string; qr: string };
+        addresses: Array<Record<string, unknown>>;
+      };
+      expect(pairingBody.primary.origin).toBe("http://192.168.31.8:18922");
+      expect(pairingBody.primary.url).toContain("http://192.168.31.8:18922/pair/");
+      expect(pairingBody.primary.qr).toMatch(/^data:image\/png;base64,/);
+      expect(pairingBody.addresses).toHaveLength(3);
+      expect(pairingBody.addresses.every((address) => !("qr" in address) && !("url" in address))).toBe(true);
 
       const firstTicket = pairing.issue();
       const firstScan = await fetch(`${listener.origin}/pair/${firstTicket.token}`, {
@@ -113,10 +140,14 @@ describe("bridge HTTP console APIs", () => {
 
       const preferred = await fetch(`${listener.origin}/api/preferred-links`, { method: "POST", headers: { Cookie: cookie } });
       expect(preferred.status).toBe(200);
-      const preferredBody = await preferred.json() as { links: Array<{ url: string; stable: boolean }> };
+      const preferredBody = await preferred.json() as { links: Array<{ url: string; stable: boolean; tailscale: boolean }> };
+      const tailscaleLink = preferredBody.links.find((link) => link.tailscale);
       const stableLink = preferredBody.links.find((link) => link.stable);
+      expect(tailscaleLink).toBeTruthy();
       expect(stableLink).toBeTruthy();
+      const adoptedTailscale = await fetch(`${listener.origin}${new URL(tailscaleLink?.url ?? "").pathname}`, { redirect: "manual" });
       const adopted = await fetch(`${listener.origin}${new URL(stableLink?.url ?? "").pathname}`, { redirect: "manual" });
+      expect(adoptedTailscale.status).toBe(303);
       expect(adopted.status).toBe(303);
       expect(sessions.listDevices()).toHaveLength(1);
       expect(sessions.listDevices()[0].id).toBe(firstDevice.id);

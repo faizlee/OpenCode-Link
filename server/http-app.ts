@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import QRCode from "qrcode";
 import { AttachmentUploadError, parseAttachmentMessage } from "./attachment-upload.js";
 import type { StableLanAddress } from "./lan-discovery.js";
-import { listLanAddresses, listTailscaleAddresses } from "./network.js";
+import { listLanAddresses, listTailscaleAddresses, type LanAddress, type TailscaleAddress } from "./network.js";
 import type { PairingStore } from "./pairing.js";
 import { queueMessage } from "./queue-message.js";
 import { publicHealth, publicRuntime, publicSettings, type RuntimeIdentity } from "./runtime.js";
@@ -25,7 +25,21 @@ export interface BridgeAppServices {
   identity: RuntimeIdentity;
   lanDiscovery: ConsoleLanDiscovery;
   appServerReady: () => boolean;
+  networkAddresses?: () => { lanAddresses: LanAddress[]; tailscaleAddresses: TailscaleAddress[] };
   onShutdown?: () => void;
+}
+
+type PairingCandidate = LanAddress | StableLanAddress | TailscaleAddress;
+
+export function selectInitialPairingAddress(
+  lanAddresses: LanAddress[],
+  stableAddress: StableLanAddress | null,
+  tailscaleAddresses: TailscaleAddress[],
+): PairingCandidate | null {
+  // The first scan must work without assuming that the phone already has
+  // Tailscale or .local resolution. Once authenticated, the phone probes the
+  // other candidates and migrates the same device identity internally.
+  return lanAddresses[0] ?? stableAddress ?? tailscaleAddresses[0] ?? null;
 }
 
 function requireLoopback(request: Request, response: Response, message: string) {
@@ -60,6 +74,10 @@ export async function connectionStatus(port: number, lanDiscovery: ConsoleLanDis
 
 export function createBridgeApp(services: BridgeAppServices): Express {
   const { sessions, pairing, identity, lanDiscovery, appServerReady } = services;
+  const networkAddresses = services.networkAddresses ?? (() => ({
+    lanAddresses: listLanAddresses(identity.port),
+    tailscaleAddresses: listTailscaleAddresses(identity.port),
+  }));
   const app = express();
 
   app.set("trust proxy", true);
@@ -159,7 +177,7 @@ export function createBridgeApp(services: BridgeAppServices): Express {
       response.status(401).json({ error: "当前设备身份已失效，请重新配对" });
       return;
     }
-    const ticket = pairing.issue(sessionToken ? { sessionToken } : {});
+    const ticket = pairing.issue(sessionToken ? { sessionToken, kind: "migration" } : {});
     response.json({ origin: stableAddress.origin, url: `${stableAddress.origin}/pair/${ticket.token}` });
   });
 
@@ -175,11 +193,11 @@ export function createBridgeApp(services: BridgeAppServices): Express {
       return;
     }
 
-    const tailscale = listTailscaleAddresses(identity.port);
+    const tailscale = networkAddresses().tailscaleAddresses;
     const stable = await lanDiscovery.address();
     const targets = [...tailscale, ...(stable ? [stable] : [])];
     const links = targets.map((target) => {
-      const ticket = pairing.issue({ sessionToken });
+      const ticket = pairing.issue({ sessionToken, kind: "migration" });
       return {
         origin: target.origin,
         url: `${target.origin}/pair/${ticket.token}`,
@@ -231,20 +249,23 @@ export function createBridgeApp(services: BridgeAppServices): Express {
     response.setHeader("Cache-Control", "no-store");
     if (!requireLoopback(request, response, "配对页只能在这台电脑上打开")) return;
 
-    const ticket = pairing.issue();
-    const lanAddresses = listLanAddresses(identity.port);
-    const tailscaleAddresses = listTailscaleAddresses(identity.port);
+    const { lanAddresses, tailscaleAddresses } = networkAddresses();
     const stableAddress = await lanDiscovery.address();
     const entries = [...lanAddresses, ...(stableAddress ? [stableAddress] : []), ...tailscaleAddresses];
-    const addresses = await Promise.all(entries.map(async (entry) => {
-      const url = `${entry.origin}/pair/${ticket.token}`;
-      return {
-        ...entry,
-        url,
-        qr: await QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 360 }),
-      };
-    }));
-    response.json({ expiresAt: ticket.expiresAt, addresses });
+    const selected = selectInitialPairingAddress(lanAddresses, stableAddress, tailscaleAddresses);
+    if (!selected) {
+      response.status(503).json({ error: "没有找到手机可连接的网络，请检查电脑网络后重试" });
+      return;
+    }
+
+    const ticket = pairing.issue();
+    const url = `${selected.origin}/pair/${ticket.token}`;
+    const primary = {
+      ...selected,
+      url,
+      qr: await QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 360 }),
+    };
+    response.json({ expiresAt: ticket.expiresAt, primary, addresses: entries });
   });
 
   app.get("/pair/:token", (request, response) => {

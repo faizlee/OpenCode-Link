@@ -51,6 +51,12 @@ interface PairingAddress {
   tailscale?: boolean;
 }
 
+interface PairingState {
+  expiresAt: number;
+  primary: PairingAddress;
+  addresses: Array<Omit<PairingAddress, "url" | "qr">>;
+}
+
 interface SettingsState {
   autoStart?: boolean;
   openConsoleOnStart?: boolean;
@@ -83,8 +89,7 @@ export default function ConsoleApp() {
   const [copied, setCopied] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingLoading, setPairingLoading] = useState(false);
-  const [pairing, setPairing] = useState<{ expiresAt: number; addresses: PairingAddress[] } | null>(null);
-  const [pairingOrigin, setPairingOrigin] = useState("");
+  const [pairing, setPairing] = useState<PairingState | null>(null);
   const [now, setNow] = useState(Date.now());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState<Record<string, string>>({});
@@ -150,13 +155,9 @@ export default function ConsoleApp() {
     setError("");
     try {
       const response = await fetch("/api/pairing", { method: "POST", cache: "no-store" });
-      const data = await response.json() as { error?: string; expiresAt: number; addresses: PairingAddress[] };
+      const data = await response.json() as PairingState & { error?: string };
       if (!response.ok) throw new Error(data.error ?? "无法生成二维码");
       setPairing(data);
-      const preferred = data.addresses.find((address) => !address.stable && !address.tailscale)
-        ?? data.addresses.find((address) => address.stable)
-        ?? data.addresses[0];
-      setPairingOrigin(preferred?.origin ?? "");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -234,7 +235,7 @@ export default function ConsoleApp() {
   }
 
   const remainingMs = pairing ? pairing.expiresAt - now : 0;
-  const primaryQr = pairing?.addresses.find((address) => address.origin === pairingOrigin) ?? pairing?.addresses[0];
+  const primaryQr = pairing?.primary;
   const versionMismatch = Boolean(runtime.tray?.version && runtime.version && runtime.tray.version !== runtime.version);
   const recentDevices = devices.filter((device) => !isUnusedDevice(device.lastSeenAt)).slice(0, 3);
   const unusedDevices = devices.filter((device) => isUnusedDevice(device.lastSeenAt));
@@ -316,26 +317,8 @@ export default function ConsoleApp() {
       {pairingLoading && <p className="console-muted">正在生成二维码</p>}
       {primaryQr && (
         <>
-          {pairing && pairing.addresses.length > 1 && (
-            <div className="console-actions" aria-label="选择配对网络">
-              {pairing.addresses.map((address) => (
-                <button
-                  key={address.origin}
-                  type="button"
-                  className={`console-button ${address.origin === primaryQr.origin ? "" : "secondary"}`}
-                  onClick={() => setPairingOrigin(address.origin)}
-                >
-                  {address.tailscale ? "Tailscale" : address.stable ? "固定名称" : "局域网"}
-                </button>
-              ))}
-            </div>
-          )}
           <img className="console-qr" src={primaryQr.qr} alt="手机配对二维码" />
-          <p className="console-muted">
-            {primaryQr.tailscale
-              ? "手机连接同一个 Tailscale 网络后扫描。完成一次配对，以后可直接使用这个远程入口。"
-              : "手机与电脑在同一局域网时扫描。若手机已启用 Tailscale，授权后会自动沿用同一设备身份切换到远程入口。"}
-          </p>
+          <p className="console-muted">扫描后会绑定这台手机与电脑。局域网、固定名称和 Tailscale 等连接方式由软件自动选择，网络变化时不需要重新扫码。</p>
           <p className="console-muted">{remainingMs > 0 ? `剩余 ${Math.ceil(remainingMs / 1000)} 秒` : "二维码已过期，请刷新。"}</p>
           <div className="console-actions">
             <button className="console-button secondary" onClick={() => void issuePairing()}>刷新二维码</button>
