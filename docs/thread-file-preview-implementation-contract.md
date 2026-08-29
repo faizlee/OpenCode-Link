@@ -55,6 +55,7 @@
 - 任务读取会把合格的Markdown本地文件链接改写为同源预览链接；普通外部链接保持原行为。
 - 手机与电脑界面已实现图片、PDF、文本和不支持格式四类预览状态，并保留下载、关闭、`Escape`和阅读位置恢复。
 - `npm run typecheck`、19个测试文件62项测试、生产构建、Windows便携包和隔离包检查通过。
-- 本机最终运行构建：`0.1.0+20260829T034201Z`，目录 `release/deployed-file-preview-final-20260829-114302/OpenCodexLink`。
+- 集成提交：`1e2850f`，已快进合并到 `codex/desktop-tray-redline`。
+- 本机最终运行构建：`0.1.0+20260829T034853Z`，目录 `release/deployed-file-preview-integrated-20260829-115001/OpenCodexLink`。
 - 真实浏览器验证：当前任务发现21个可预览链接；桌面文本预览正确；390px下弹窗占满390×844视口且无横向溢出；`product-decisions.json`文本、`tray.png`图片、ZIP不支持格式说明与下载入口均通过；控制台无错误。
-- 验收创建的临时设备 `ALrvogwUSEwX9RSV` 已精确删除；原设备 `8o2yj97Xo0sIohFS` 保留，设备文件SHA-256恢复为 `7B3213607EA7C153D51F7D0253720573D649EAD712912106E9E960A578D4E23C`。
+- 两轮验收创建的临时设备均已精确删除；设备集合恢复为唯一原设备 `8o2yj97Xo0sIohFS`。清理点曾回到验收前文件哈希，随后原设备的正常访问又刷新了 `lastSeenAt` 和滚动会话，因此最终身份依据是精确设备ID集合，不是会随正常使用变化的文件哈希。
