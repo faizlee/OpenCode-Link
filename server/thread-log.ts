@@ -32,6 +32,14 @@ function defaultCodexHome() {
   return process.env.CODEX_HOME || join(homedir(), ".codex");
 }
 
+function historyKey(threadId: string, codexHome: string) {
+  return `${codexHome}\0${threadId}`;
+}
+
+function historyRevision(history: CachedHistory | null) {
+  return history ? `${history.path}\0${history.offset}\0${history.remainder.length}` : null;
+}
+
 async function firstJsonLine(path: string) {
   // session_meta can be larger than 32KB because it contains the task's
   // instruction snapshot. Read through its real newline instead of assuming a
@@ -249,12 +257,13 @@ function emptyHistory(path: string, discoveredAt: number): CachedHistory {
 async function loadHistory(threadId: string, codexHome: string, options: ReadOptions) {
   const now = options.now?.() ?? Date.now();
   const rediscoveryIntervalMs = options.rediscoveryIntervalMs ?? ROLLOUT_REDISCOVERY_INTERVAL_MS;
-  let history = cache.get(threadId);
+  const key = historyKey(threadId, codexHome);
+  let history = cache.get(key);
   if (history) {
     try {
       await access(history.path);
     } catch {
-      cache.delete(threadId);
+      cache.delete(key);
       history = undefined;
     }
   }
@@ -262,7 +271,7 @@ async function loadHistory(threadId: string, codexHome: string, options: ReadOpt
     const latestPath = await locateRollout(threadId, codexHome);
     if (latestPath && latestPath !== history.path) {
       history = emptyHistory(latestPath, now);
-      cache.set(threadId, history);
+      cache.set(key, history);
     } else {
       history.lastDiscoveryAt = now;
     }
@@ -271,20 +280,24 @@ async function loadHistory(threadId: string, codexHome: string, options: ReadOpt
     const path = await locateRollout(threadId, codexHome);
     if (!path) return null;
     history = emptyHistory(path, now);
-    cache.set(threadId, history);
+    cache.set(key, history);
   }
   return readNewBytes(history);
 }
 
-export async function hydrateThreadFromDesktopLog(thread: CodexThread, options: ReadOptions = {}): Promise<CodexThread> {
-  const codexHome = options.codexHome ?? defaultCodexHome();
-  const key = `${codexHome}\0${thread.id}`;
+async function readHistory(threadId: string, codexHome: string, options: ReadOptions) {
+  const key = historyKey(threadId, codexHome);
   let pending = inflight.get(key);
   if (!pending) {
-    pending = loadHistory(thread.id, codexHome, options).finally(() => inflight.delete(key));
+    pending = loadHistory(threadId, codexHome, options).finally(() => inflight.delete(key));
     inflight.set(key, pending);
   }
-  const history = await pending;
+  return pending;
+}
+
+export async function hydrateThreadFromDesktopLog(thread: CodexThread, options: ReadOptions = {}): Promise<CodexThread> {
+  const codexHome = options.codexHome ?? defaultCodexHome();
+  const history = await readHistory(thread.id, codexHome, options);
   if (!history?.turnOrder.length) return thread;
 
   const turns = history.turnOrder
@@ -302,6 +315,16 @@ export async function hydrateThreadFromDesktopLog(thread: CodexThread, options: 
     updatedAt: Math.max(thread.updatedAt, history.updatedAt),
     turns,
   };
+}
+
+export async function refreshThreadLogRevision(threadId: string, options: ReadOptions = {}) {
+  const codexHome = options.codexHome ?? defaultCodexHome();
+  return historyRevision(await readHistory(threadId, codexHome, options));
+}
+
+export function currentThreadLogRevision(threadId: string, options: Pick<ReadOptions, "codexHome"> = {}) {
+  const codexHome = options.codexHome ?? defaultCodexHome();
+  return historyRevision(cache.get(historyKey(threadId, codexHome)) ?? null);
 }
 
 export function clearThreadLogCache() {

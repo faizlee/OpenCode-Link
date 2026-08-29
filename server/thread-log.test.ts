@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CodexThread } from "./protocol.js";
-import { clearThreadLogCache, hydrateThreadFromDesktopLog } from "./thread-log.js";
+import {
+  clearThreadLogCache,
+  currentThreadLogRevision,
+  hydrateThreadFromDesktopLog,
+  refreshThreadLogRevision,
+} from "./thread-log.js";
 
 const threadId = "01a03a0f-379c-7920-8e5a-8189842a777f";
 
@@ -126,6 +131,24 @@ describe("hydrateThreadFromDesktopLog", () => {
     const second = await hydrateThreadFromDesktopLog(baseThread(), { codexHome: root });
     expect(second.turns[0].items.at(-1)?.text).toBe("追加进展");
     expect(second.updatedAt).toBe(Date.parse("2026-08-26T08:01:00Z") / 1000);
+  });
+
+  it("keeps a stable lightweight revision until the persisted log changes", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codex-link-log-"));
+    const directory = join(root, "sessions");
+    await mkdir(directory, { recursive: true });
+    const path = join(directory, `rollout-${threadId}.jsonl`);
+    await writeFile(path, [
+      JSON.stringify({ type: "session_meta", payload: { id: threadId } }),
+      record("2026-08-26T08:00:00Z", "user", "turn-1", "初始消息", "user-1"),
+    ].join("\n") + "\n", "utf8");
+
+    await hydrateThreadFromDesktopLog(baseThread(), { codexHome: root });
+    const initial = currentThreadLogRevision(threadId, { codexHome: root });
+    expect(await refreshThreadLogRevision(threadId, { codexHome: root })).toBe(initial);
+
+    await appendFile(path, record("2026-08-26T08:01:00Z", "assistant", "turn-1", "新消息", "agent-1") + "\n", "utf8");
+    expect(await refreshThreadLogRevision(threadId, { codexHome: root })).not.toBe(initial);
   });
 
   it("hides injected plugin, instruction, and environment context records", async () => {

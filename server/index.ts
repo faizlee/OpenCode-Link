@@ -11,7 +11,8 @@ import type { BrowserCommand, BrowserMessage, RpcEvent, ThreadOpenResponse, Thre
 import { queueMessage } from "./queue-message.js";
 import { clearRuntimeRecord, createRuntimeIdentity, resolveDataRoot, writeRuntimeRecord } from "./runtime.js";
 import { SessionStore } from "./session.js";
-import { hydrateThreadFromDesktopLog } from "./thread-log.js";
+import { currentThreadLogRevision, hydrateThreadFromDesktopLog, refreshThreadLogRevision } from "./thread-log.js";
+import { createThreadRevision } from "./thread-revision.js";
 import { dedupeThreadPage } from "./thread-utils.js";
 
 const host = process.env.CODEX_PWA_HOST ?? "127.0.0.1";
@@ -113,6 +114,7 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
         succeed({
           ...result,
           thread,
+          revision: createThreadRevision(result.thread, currentThreadLogRevision(thread.id)),
           model: "电脑端 Codex",
           cwd: thread.cwd,
           access: "queued",
@@ -125,7 +127,21 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
           threadId: command.threadId,
           includeTurns: true,
         }) as { thread: ThreadOpenResponse["thread"] };
-        succeed({ ...result, thread: await filePreviews.prepareThread(await hydrateThreadFromDesktopLog(result.thread)) });
+        const thread = await filePreviews.prepareThread(await hydrateThreadFromDesktopLog(result.thread));
+        succeed({
+          ...result,
+          thread,
+          revision: createThreadRevision(result.thread, currentThreadLogRevision(thread.id)),
+        });
+        return;
+      }
+      case "thread:check": {
+        const result = await codex.request("thread/read", {
+          threadId: command.threadId,
+          includeTurns: false,
+        }) as Pick<ThreadOpenResponse, "thread">;
+        const logRevision = await refreshThreadLogRevision(command.threadId);
+        succeed({ revision: createThreadRevision(result.thread, logRevision) });
         return;
       }
       case "turn:start": {

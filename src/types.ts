@@ -59,6 +59,7 @@ export interface ThreadPage {
 
 export interface ThreadResumeResponse {
   thread: CodexThread;
+  revision: string;
   model: string;
   cwd: string;
   approvalPolicy: string;

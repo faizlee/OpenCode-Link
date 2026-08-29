@@ -37,6 +37,7 @@ import {
   type RouteState,
 } from "./route-failover";
 import { activeTurnId, applyThreadEvent } from "./thread-state";
+import { loadCachedThread, saveCachedThread } from "./thread-cache";
 import type { BridgeMessage, CodexThread, FilePreviewDescriptor, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
 
 const bridge = new BridgeClient();
@@ -775,20 +776,24 @@ function ChatView({
 
 export default function App() {
   const setupMode = isDesktopConsolePath(window.location.pathname);
+  const initialThreadId = threadIdFromPath(window.location.pathname);
   const [session, setSession] = useState<SessionState>({ loading: true, authRequired: false, authenticated: false });
   const [connection, setConnection] = useState("connecting");
   const [bridgeReady, setBridgeReady] = useState(false);
   const [threads, setThreads] = useState<CodexThread[]>([]);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [loading, setLoading] = useState(false);
-  const [opening, setOpening] = useState(() => Boolean(threadIdFromPath(window.location.pathname)));
+  const [selected, setSelected] = useState<ThreadResumeResponse | null>(() => initialThreadId ? loadCachedThread(initialThreadId) : null);
+  const [opening, setOpening] = useState(() => Boolean(initialThreadId) && !selected);
+  const [routeThreadId, setRouteThreadId] = useState(initialThreadId);
   const [sending, setSending] = useState(false);
-  const [selected, setSelected] = useState<ThreadResumeResponse | null>(null);
   const [requests, setRequests] = useState<RpcEvent[]>([]);
   const [error, setError] = useState("");
   const [deliveryNotice, setDeliveryNotice] = useState("");
   const navigationToken = useRef(0);
   const listScrollTop = useRef(0);
+  const lastLoadedSearch = useRef<string | null>(null);
+  const selectedRef = useRef(selected);
 
   useEffect(() => {
     if (!setupMode) void readSession().then(setSession).catch((reason) => setError(String(reason)));
@@ -800,8 +805,10 @@ export default function App() {
     try {
       const page = await bridge.request<ThreadPage>("threads:list", { searchTerm: term });
       setThreads(page.data);
+      return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -810,6 +817,10 @@ export default function App() {
   const showThreadList = useCallback((scrollTop = listScrollTop.current) => {
     navigationToken.current += 1;
     listScrollTop.current = scrollTop;
+    setRouteThreadId((current) => {
+      if (current) lastLoadedSearch.current = null;
+      return null;
+    });
     setSelected(null);
     setOpening(false);
     window.requestAnimationFrame(() => window.scrollTo({ top: scrollTop, behavior: "auto" }));
@@ -847,7 +858,6 @@ export default function App() {
       if (message.type === "ready") {
         setBridgeReady(true);
         setRequests(message.pendingRequests);
-        void loadThreads("");
       } else if (message.type === "serverRequest") {
         setRequests((current) => upsertRequest(current, message.request));
       } else if (message.type === "event") {
@@ -859,7 +869,7 @@ export default function App() {
       }
     });
     return () => { offState(); offMessage(); bridge.disconnect(); };
-  }, [session.authenticated, loadThreads]);
+  }, [session.authenticated]);
 
   useEffect(() => {
     if (!session.authenticated) return;
@@ -867,7 +877,8 @@ export default function App() {
     const syncFromLocation = (state: Record<string, unknown> | null = window.history.state) => {
       const threadId = threadIdFromPath(window.location.pathname);
       if (threadId) {
-        if (bridgeReady) void openThreadById(threadId);
+        setRouteThreadId(threadId);
+        if (bridgeReady && selected?.thread.id !== threadId) void openThreadById(threadId);
         return;
       }
       setSearch(new URLSearchParams(window.location.search).get("q") ?? "");
@@ -879,13 +890,24 @@ export default function App() {
     window.addEventListener("popstate", onPopState);
     syncFromLocation();
     return () => window.removeEventListener("popstate", onPopState);
-  }, [bridgeReady, openThreadById, session.authenticated, showThreadList]);
+  }, [bridgeReady, openThreadById, selected?.thread.id, session.authenticated, showThreadList]);
 
   useEffect(() => {
-    if (!session.authenticated) return;
-    const timer = window.setTimeout(() => void loadThreads(search), 300);
+    if (!session.authenticated || !bridgeReady || routeThreadId || lastLoadedSearch.current === search) return;
+    const timer = window.setTimeout(() => {
+      void loadThreads(search).then((loaded) => {
+        if (loaded) lastLoadedSearch.current = search;
+      });
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [search, session.authenticated, loadThreads]);
+  }, [bridgeReady, loadThreads, routeThreadId, search, session.authenticated]);
+
+  useEffect(() => {
+    selectedRef.current = selected;
+    if (!selected) return;
+    const timer = window.setTimeout(() => saveCachedThread(selected), 250);
+    return () => window.clearTimeout(timer);
+  }, [selected]);
 
   useEffect(() => {
     if (setupMode) return;
@@ -895,23 +917,21 @@ export default function App() {
 
   useEffect(() => {
     const threadId = selected?.thread.id;
-    if (!session.authenticated || selected?.access === "control" || !threadId) return;
+    if (!session.authenticated || !bridgeReady || selected?.access === "control" || !threadId) return;
 
     let disposed = false;
     let refreshing = false;
     const refresh = async () => {
-      if (refreshing) return;
+      if (refreshing || document.visibilityState !== "visible") return;
       refreshing = true;
       try {
-        const result = await bridge.request<{ thread: CodexThread }>("thread:read", { threadId });
+        const check = await bridge.request<{ revision: string }>("thread:check", { threadId });
         if (disposed) return;
-        setSelected((current) => {
-          if (!current || current.thread.id !== threadId) return current;
-          const previousTurn = current.thread.turns.at(-1);
-          const nextTurn = result.thread.turns.at(-1);
-          if (current.thread.updatedAt === result.thread.updatedAt && JSON.stringify(previousTurn) === JSON.stringify(nextTurn)) return current;
-          return { ...current, thread: result.thread };
-        });
+        const current = selectedRef.current;
+        if (!current || current.thread.id !== threadId || current.revision === check.revision) return;
+        const result = await bridge.request<Pick<ThreadResumeResponse, "thread" | "revision">>("thread:read", { threadId });
+        if (disposed) return;
+        setSelected((latest) => latest?.thread.id === threadId ? { ...latest, ...result } : latest);
       } catch {
         // The WebSocket reconnect loop handles temporary network loss.
       } finally {
@@ -920,18 +940,24 @@ export default function App() {
     };
 
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 2_000);
+    const timer = window.setInterval(() => void refresh(), 5_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       disposed = true;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [session.authenticated, selected?.access, selected?.thread.id]);
+  }, [bridgeReady, session.authenticated, selected?.access, selected?.thread.id]);
 
   function openThread(thread: CodexThread) {
     const scrollTop = window.scrollY;
     listScrollTop.current = scrollTop;
     window.history.replaceState({ ...(window.history.state ?? {}), view: "tasks", listScrollTop: scrollTop }, "", listPath(search));
     window.history.pushState({ view: "thread", threadId: thread.id, listScrollTop: scrollTop }, "", threadPath(thread.id));
+    setRouteThreadId(thread.id);
     void openThreadById(thread.id);
   }
 
