@@ -37,7 +37,7 @@ import {
   type RouteState,
 } from "./route-failover";
 import { activeTurnId, applyThreadEvent } from "./thread-state";
-import type { BridgeMessage, CodexThread, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
+import type { BridgeMessage, CodexThread, FilePreviewDescriptor, RpcEvent, ThreadPage, ThreadResumeResponse } from "./types";
 
 const bridge = new BridgeClient();
 
@@ -384,6 +384,26 @@ function Conversation({ thread }: { thread: CodexThread }) {
   const container = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const previewPosition = useRef<{ scrollTop: number; stickToBottom: boolean } | null>(null);
+  const [preview, setPreview] = useState<FilePreviewDescriptor | null>(null);
+
+  const openFilePreview = useCallback((file: FilePreviewDescriptor) => {
+    const element = container.current;
+    previewPosition.current = element ? { scrollTop: element.scrollTop, stickToBottom: stickToBottom.current } : null;
+    stickToBottom.current = false;
+    setPreview(file);
+  }, []);
+
+  const closeFilePreview = useCallback(() => {
+    const position = previewPosition.current;
+    setPreview(null);
+    window.requestAnimationFrame(() => {
+      const element = container.current;
+      if (element && position) element.scrollTop = position.scrollTop;
+      if (position) stickToBottom.current = position.stickToBottom;
+      previewPosition.current = null;
+    });
+  }, []);
 
   useEffect(() => {
     const element = container.current;
@@ -400,6 +420,11 @@ function Conversation({ thread }: { thread: CodexThread }) {
     const element = container.current;
     if (stickToBottom.current && element) element.scrollTop = element.scrollHeight;
   }, [thread.turns]);
+
+  useEffect(() => {
+    setPreview(null);
+    previewPosition.current = null;
+  }, [thread.id]);
 
   return (
     <div ref={container} className="conversation">
@@ -418,10 +443,42 @@ function Conversation({ thread }: { thread: CodexThread }) {
           );
         }
         if (item.type === "agentMessage" && item.text) {
+          const filePreviews = item.filePreviews ?? [];
           return (
             <div className="message-row agent" key={item.id ?? `${turn.id}-${index}`}>
               <div className="agent-label">Codex</div>
-              <div className="message-bubble markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text}</ReactMarkdown></div>
+              <div className="message-bubble markdown">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ href, children }) => {
+                      const file = filePreviews.find((candidate) => candidate.url === href);
+                      if (file) {
+                        return (
+                          <button type="button" className="file-preview-link" onClick={() => openFilePreview(file)}>
+                            <FileText size={16} />
+                            <span>{children}</span>
+                          </button>
+                        );
+                      }
+                      return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
+                    },
+                    img: ({ src, alt }) => {
+                      const file = filePreviews.find((candidate) => candidate.url === src);
+                      if (file) {
+                        return (
+                          <button type="button" className="file-preview-image" onClick={() => openFilePreview(file)} aria-label={`预览 ${file.name}`}>
+                            <img src={src} alt={alt ?? file.name} />
+                          </button>
+                        );
+                      }
+                      return <img src={src} alt={alt ?? ""} />;
+                    },
+                  }}
+                >
+                  {item.text}
+                </ReactMarkdown>
+              </div>
             </div>
           );
         }
@@ -430,6 +487,86 @@ function Conversation({ thread }: { thread: CodexThread }) {
       }))}
       {activeTurnId(thread) && <div className="thinking"><LoaderCircle className="spin" size={16} /> Codex 正在处理，回复会自动出现</div>}
       <div ref={bottom} />
+      {preview && <FilePreviewModal file={preview} onClose={closeFilePreview} />}
+    </div>
+  );
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function FilePreviewModal({ file, onClose }: { file: FilePreviewDescriptor; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(file.kind === "text");
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.body.classList.add("file-preview-open");
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.classList.remove("file-preview-open");
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (file.kind !== "text") return;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    fetch(file.url, { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.ok) return response.text();
+        const detail = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(detail.error || "文件暂时无法读取");
+      })
+      .then((content) => setText(content))
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "文件暂时无法读取");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [file]);
+
+  return (
+    <div className="file-preview-overlay" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section className="file-preview-modal" role="dialog" aria-modal="true" aria-label={`预览 ${file.name}`}>
+        <header className="file-preview-header">
+          <div>
+            <strong>{file.name}</strong>
+            <small>{formatFileSize(file.size)}</small>
+          </div>
+          <div className="file-preview-actions">
+            <a href={file.downloadUrl} target="_blank" rel="noreferrer" aria-label={`下载 ${file.name}`}><Download size={18} /><span>下载</span></a>
+            <button type="button" onClick={onClose} aria-label="关闭预览"><X size={21} /></button>
+          </div>
+        </header>
+        <div className={`file-preview-body ${file.kind}`}>
+          {file.kind === "image" && !error && <img src={file.url} alt={file.name} onError={() => setError("图片已清理、移动或暂时无法读取")} />}
+          {file.kind === "pdf" && <iframe src={file.url} title={file.name} />}
+          {file.kind === "text" && loading && <div className="file-preview-state"><LoaderCircle className="spin" size={22} />正在读取文件…</div>}
+          {file.kind === "text" && !loading && !error && <pre>{text}</pre>}
+          {file.kind === "download" && (
+            <div className="file-preview-state">
+              <FileText size={42} />
+              <strong>此格式暂不支持网页内预览</strong>
+              <p>可以下载原文件，再用手机或电脑上的对应应用打开。</p>
+              <a href={file.downloadUrl} target="_blank" rel="noreferrer"><Download size={17} />下载原文件</a>
+            </div>
+          )}
+          {error && <div className="file-preview-state error"><FileText size={38} /><strong>{error}</strong><p>请重新打开任务，或确认电脑上的原文件仍然存在。</p></div>}
+        </div>
+      </section>
     </div>
   );
 }

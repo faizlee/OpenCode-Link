@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import { CodexAppServer } from "./app-server.js";
-import { cleanupExpiredUploads } from "./attachment-upload.js";
+import { cleanupExpiredUploads, uploadRoot } from "./attachment-upload.js";
+import { FilePreviewStore } from "./file-preview.js";
 import { createBridgeApp } from "./http-app.js";
 import { LanDiscovery } from "./lan-discovery.js";
 import { listLanAddresses } from "./network.js";
@@ -23,6 +24,7 @@ const sessions = new SessionStore();
 const pairing = new PairingStore();
 const lanDiscovery = new LanDiscovery(port, process.env.CODEX_PWA_LAN_NAME);
 const codex = new CodexAppServer();
+const filePreviews = new FilePreviewStore({ uploadRoot: uploadRoot() });
 const lifecycle = { stop() {} };
 const app = createBridgeApp({
   sessions,
@@ -30,6 +32,7 @@ const app = createBridgeApp({
   identity,
   lanDiscovery,
   appServerReady: () => Boolean(codex.info),
+  filePreviews,
   onShutdown: () => lifecycle.stop(),
 });
 const httpServer = createServer(app);
@@ -106,7 +109,7 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
           threadId: command.threadId,
           includeTurns: true,
         }) as Pick<ThreadOpenResponse, "thread">;
-        const thread = await hydrateThreadFromDesktopLog(result.thread);
+        const thread = await filePreviews.prepareThread(await hydrateThreadFromDesktopLog(result.thread));
         succeed({
           ...result,
           thread,
@@ -122,7 +125,7 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand) {
           threadId: command.threadId,
           includeTurns: true,
         }) as { thread: ThreadOpenResponse["thread"] };
-        succeed({ ...result, thread: await hydrateThreadFromDesktopLog(result.thread) });
+        succeed({ ...result, thread: await filePreviews.prepareThread(await hydrateThreadFromDesktopLog(result.thread)) });
         return;
       }
       case "turn:start": {

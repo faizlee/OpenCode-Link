@@ -18,7 +18,16 @@ export interface ThreadItem {
   changes?: Array<Record<string, unknown>>;
   server?: string;
   tool?: string;
+  filePreviews?: FilePreviewDescriptor[];
   [key: string]: unknown;
+}
+
+export interface FilePreviewDescriptor {
+  url: string;
+  downloadUrl: string;
+  name: string;
+  kind: "image" | "pdf" | "text" | "download";
+  size: number;
 }
 
 export interface Turn {

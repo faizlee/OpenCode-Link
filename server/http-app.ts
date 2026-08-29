@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import QRCode from "qrcode";
 import { AttachmentUploadError, parseAttachmentMessage } from "./attachment-upload.js";
+import { fileStillExists, type FilePreviewStore } from "./file-preview.js";
 import type { StableLanAddress } from "./lan-discovery.js";
 import { listLanAddresses, listTailscaleAddresses, type LanAddress, type TailscaleAddress } from "./network.js";
 import type { PairingStore } from "./pairing.js";
@@ -26,6 +27,7 @@ export interface BridgeAppServices {
   lanDiscovery: ConsoleLanDiscovery;
   appServerReady: () => boolean;
   networkAddresses?: () => { lanAddresses: LanAddress[]; tailscaleAddresses: TailscaleAddress[] };
+  filePreviews?: FilePreviewStore;
   onShutdown?: () => void;
 }
 
@@ -191,6 +193,39 @@ export function createBridgeApp(services: BridgeAppServices): Express {
       const message = error instanceof Error ? error.message : String(error);
       response.status(error instanceof AttachmentUploadError ? 400 : 500).json({ error: message });
     }
+  });
+
+  app.get("/api/files/:token", (request, response) => {
+    response.setHeader("Cache-Control", "private, no-store");
+    if (!sessions.isAuthenticated(request)) {
+      response.status(401).json({ error: "需要先完成设备配对" });
+      return;
+    }
+    const grant = services.filePreviews?.resolve(String(request.params.token ?? ""));
+    if (!grant) {
+      response.status(404).json({ error: "预览链接已失效，请重新打开任务" });
+      return;
+    }
+    if (!fileStillExists(grant)) {
+      response.status(410).json({ error: "文件已清理、移动或删除" });
+      return;
+    }
+
+    response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+    const download = request.query.download === "1" || grant.kind === "download";
+    if (download) {
+      response.download(grant.path, grant.name, (error) => {
+        if (error && !response.headersSent) response.status(410).json({ error: "文件已清理、移动或删除" });
+      });
+      return;
+    }
+
+    response.setHeader("X-Frame-Options", "SAMEORIGIN");
+    response.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(grant.name)}`);
+    if (grant.kind === "text") response.setHeader("Content-Type", "text/plain; charset=utf-8");
+    response.sendFile(grant.path, (error) => {
+      if (error && !response.headersSent) response.status(410).json({ error: "文件已清理、移动或删除" });
+    });
   });
 
   app.post("/api/stable-link", async (request, response) => {
